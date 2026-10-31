@@ -27,6 +27,7 @@ jobs:
           assert a["slug"]=="cl_control_web_next"
           assert a["ingress"] is True and a["homeassistant_api"] is True
           assert a["ingress_port"]==8099
+          assert "ingress_entry" not in a
           assert not a.get("ports")
           assert Path("cl_control_web_next/app/static/assets/app.js").exists()
           assert Path("cl_control_web_next/app/static/assets/app.css").exists()
