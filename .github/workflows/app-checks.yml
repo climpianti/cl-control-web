@@ -1,0 +1,37 @@
+name: CL Control Web Next App checks
+on:
+  push:
+    branches: ["app/**"]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Dependencies
+        run: pip install "aiohttp>=3.13.2,<4.0" PyYAML
+      - name: Compile Python
+        run: python -m compileall -q cl_control_web_next
+      - name: Validate Home Assistant App YAML and paths
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          a=yaml.safe_load(Path("cl_control_web_next/config.yaml").read_text())
+          assert a["slug"]=="cl_control_web_next"
+          assert a["ingress"] is True and a["homeassistant_api"] is True
+          assert a["ingress_port"]==8099
+          assert not a.get("ports")
+          assert Path("cl_control_web_next/app/static/assets/app.js").exists()
+          assert Path("cl_control_web_next/app/static/assets/app.css").exists()
+          PY
+      - name: Test API validation
+        run: python -m unittest discover -s tests -p 'test_app_*.py' -v
+      - name: Check JavaScript syntax
+        run: node --check cl_control_web_next/app/static/assets/app.js
