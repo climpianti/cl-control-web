@@ -14,7 +14,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.http.async_register_static_paths(
         [StaticPathConfig(STATIC_URL, str(directory), True)]
     )
-    await panel_custom.async_register_panel(
+    panel_custom.async_register_panel(
         hass,
         webcomponent_name="cl-control-web-panel",
         frontend_url_path=PANEL_PATH,
