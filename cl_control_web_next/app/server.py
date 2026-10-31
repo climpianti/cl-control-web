@@ -1,0 +1,133 @@
+"""CL Control Web Next: Ingress-only, server-side HA API gateway."""
+from __future__ import annotations
+import asyncio
+import json
+import logging
+import os
+from pathlib import Path
+from aiohttp import web, ClientSession, ClientTimeout
+
+LOG = logging.getLogger("cl_control_web")
+ROOT = Path(__file__).resolve().parent
+STATIC = ROOT / "static"
+CORE = os.environ.get("HA_CORE_URL", "http://supervisor/core/api").rstrip("/")
+TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
+DOMAINS = {
+    "light": {"turn_on", "turn_off"},
+    "media_player": {"media_play", "media_pause", "media_next_track", "media_previous_track", "volume_set", "volume_mute"},
+}
+PERMITTED_LIGHT = {"brightness_pct", "hs_color", "rgbw_color", "rgbww_color", "color_temp_kelvin"}
+PERMITTED_MEDIA = {"volume_level", "is_volume_muted"}
+MAX_BODY = 2048
+
+@web.middleware
+async def security_headers(request, handler):
+    response = await handler(request)
+    response.headers.update({
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+        "Cache-Control": "no-store" if request.path.startswith("/api/") else "no-cache",
+        "Content-Security-Policy": "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'",
+    })
+    return response
+
+async def ha_request(request: web.Request, method: str, endpoint: str, data=None):
+    if not TOKEN:
+        raise web.HTTPServiceUnavailable(text="Supervisor authentication unavailable")
+    async with request.app["session"].request(
+        method, f"{CORE}/{endpoint.lstrip('/')}",
+        headers={"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"},
+        json=data, allow_redirects=False,
+    ) as res:
+        if res.status != 200 and res.status != 201:
+            LOG.warning("HA upstream %s returned HTTP %s", endpoint.split("/")[0], res.status)
+            raise web.HTTPBadGateway(text="Home Assistant service unavailable")
+        return await res.json(content_type=None)
+
+async def bootstrap(request):
+    states = await ha_request(request, "GET", "states")
+    limited = []
+    for item in states:
+        eid = item.get("entity_id", "")
+        domain = eid.split(".", 1)[0]
+        if domain not in {"light","media_player","sensor","binary_sensor","cover","climate","switch","sun"}:
+            continue
+        attrs = item.get("attributes") or {}
+        allowed = {
+            k: v for k,v in attrs.items()
+            if k in {"friendly_name","brightness","hs_color","rgb_color","rgbw_color","rgbww_color",
+                     "supported_color_modes","color_mode","color_temp_kelvin","min_color_temp_kelvin",
+                     "max_color_temp_kelvin","supported_features","volume_level","is_volume_muted",
+                     "media_title","media_artist","source","unit_of_measurement","device_class"}
+        }
+        limited.append({"entity_id":eid,"state":item.get("state"),"attributes":allowed})
+    return web.json_response({"version":"0.1.0-beta.1","states":limited})
+
+def valid_control(obj):
+    if not isinstance(obj,dict) or set(obj)-{"entity_id","action","data"}:
+        raise ValueError("Invalid request")
+    eid, action, params = obj.get("entity_id"), obj.get("action"), obj.get("data",{})
+    if not isinstance(eid,str) or "." not in eid or len(eid)>255 or not all(c.isascii() and (c.isalnum() or c in "._") for c in eid):
+        raise ValueError("Invalid entity ID")
+    dom=eid.split(".",1)[0]
+    if action not in DOMAINS.get(dom, set()) or not isinstance(params,dict):
+        raise ValueError("Action not allowed")
+    allowed=PERMITTED_LIGHT if dom=="light" else PERMITTED_MEDIA
+    if set(params)-allowed:
+        raise ValueError("Parameters not allowed")
+    if action in {"turn_off","media_play","media_pause","media_previous_track","media_next_track"} and params:
+        raise ValueError("Unexpected parameters")
+    if action=="turn_on" and dom=="light":
+        if sum(k in params for k in ("hs_color","rgbw_color","rgbww_color","color_temp_kelvin"))>1:
+            raise ValueError("Conflicting color modes")
+        if "brightness_pct" in params and (type(params["brightness_pct"]) not in (int,float) or not 1<=params["brightness_pct"]<=100):
+            raise ValueError("Invalid brightness")
+        if "color_temp_kelvin" in params and (type(params["color_temp_kelvin"]) is not int or not 1000<=params["color_temp_kelvin"]<=10000):
+            raise ValueError("Invalid Kelvin")
+        for key, size, high in (("hs_color",2,360),("rgbw_color",4,255),("rgbww_color",5,255)):
+            if key in params and (not isinstance(params[key],list) or len(params[key])!=size or any(type(x) not in (int,float) or not 0<=x<=(100 if key=="hs_color" and i==1 else high) for i,x in enumerate(params[key]))):
+                raise ValueError("Invalid color")
+    if dom=="media_player":
+        if action=="volume_set" and (set(params)!={"volume_level"} or type(params["volume_level"]) not in (int,float) or not 0<=params["volume_level"]<=1):
+            raise ValueError("Invalid volume")
+        if action=="volume_mute" and (set(params)!={"is_volume_muted"} or type(params["is_volume_muted"]) is not bool):
+            raise ValueError("Invalid mute")
+    return dom,action,eid,params
+
+async def command(request):
+    if request.content_length and request.content_length>MAX_BODY:
+        raise web.HTTPRequestEntityTooLarge(max_size=MAX_BODY,actual_size=request.content_length)
+    if request.content_type!="application/json":
+        raise web.HTTPUnsupportedMediaType()
+    try:
+        obj=await request.json()
+        dom,action,eid,params=valid_control(obj)
+    except (ValueError,TypeError,json.JSONDecodeError) as ex:
+        raise web.HTTPBadRequest(text=str(ex)) from ex
+    await ha_request(request,"POST",f"services/{dom}/{action}",{"entity_id":eid,**params})
+    return web.json_response({"ok":True})
+
+async def index(_):
+    return web.FileResponse(STATIC/"index.html")
+
+async def health(_):
+    return web.json_response({"ok":True,"version":"0.1.0-beta.1"})
+
+async def start_session(app):
+    app["session"]=ClientSession(timeout=ClientTimeout(total=8))
+    yield
+    await app["session"].close()
+
+def create_app():
+    app=web.Application(middlewares=[security_headers],client_max_size=MAX_BODY)
+    app.cleanup_ctx.append(start_session)
+    app.router.add_get("/",index)
+    app.router.add_get("/api/health",health)
+    app.router.add_get("/api/bootstrap",bootstrap)
+    app.router.add_post("/api/command",command)
+    app.router.add_static("/assets/",STATIC/"assets",show_index=False,follow_symlinks=False)
+    return app
+
+if __name__=="__main__":
+    logging.basicConfig(level=logging.INFO)
+    web.run_app(create_app(),host="0.0.0.0",port=8099,access_log=None)
