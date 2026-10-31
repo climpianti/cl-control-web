@@ -110,7 +110,7 @@ async def command(request):
 
 async def areas(request):
     """Read-only areas with registry-linked temperature/humidity, no direct user token."""
-    template = """{% set ns = namespace(items=[]) %}{% for a in areas() %}{% set ns.items = ns.items + [dict(id=a,name=area_name(a),temperature=area_entities(a)|select('match','sensor\\.')|list)] %}{% endfor %}{{ ns.items | to_json }}"""
+    template = """{% set ns = namespace(items=[]) %}{% for a in areas() %}{% set ns.items = ns.items + [dict(id=a,name=area_name(a),temperature=area_entities(a)|list)] %}{% endfor %}{{ ns.items | to_json }}"""
     try:
         if not TOKEN:
             raise web.HTTPServiceUnavailable(text="HA token unavailable")
@@ -119,7 +119,7 @@ async def areas(request):
                 raise web.HTTPBadGateway(text="HA areas unavailable")
             value=await res.text()
         data=json.loads(value)
-        return web.json_response({"areas":[{"id":a["id"],"name":a["name"],"entities":a["temperature"][:100]} for a in data][:100]})
+        return web.json_response({"areas":[{"id":a["id"],"name":a["name"],"entities":a["temperature"][:600]} for a in data][:100]})
     except (ValueError,KeyError,TypeError) as exc:
         LOG.warning("Invalid HA areas response: %s",type(exc).__name__)
         raise web.HTTPBadGateway(text="HA areas response invalid") from exc
