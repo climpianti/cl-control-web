@@ -1,0 +1,29 @@
+name: CL Control Web checks
+on:
+  push:
+    branches: ["next/**", main]
+  pull_request:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Validate Python source
+        run: python -m compileall -q custom_components
+      - name: Validate JSON and component manifest
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path("custom_components").rglob("*.json"):
+              json.loads(path.read_text(encoding="utf-8"))
+              print(path)
+          PY
+      - name: Check JavaScript syntax
+        run: node --check custom_components/cl_control_web/frontend/panel.js
