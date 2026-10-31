@@ -1,18 +1,10 @@
-# Piano di recupero e migrazione
+# Sostituzione della vecchia App (procedura, non ancora eseguita)
 
-## Fonte verificata
-- App Home Assistant `local_cl_control_web`, versione `0.2.0-beta.6`, in esecuzione.
-- Asset HTTP `/assets/app.css` leggibile.
-- `/assets/app.js` viene restituito con un limite di risposta di 51.200 caratteri: **non è una sorgente completa verificata**.
-- Il solo frontend HTTP non contiene il codice Python/backend, i Dockerfile o i test.
+1. Verificare il repository e i controlli CI.
+2. Installare l'integrazione `cl_control_web` sul beta test **in parallelo**, lasciando `local_cl_control_web` avviata.
+3. Controllare il rendering mobile e desktop, i comandi principali, i log e la Discovery ETS.
+4. Confermare che non esistono dipendenze e salvare un backup separato di configurazione e dati dell'App precedente.
+5. Fermare la vecchia App; non disinstallarla prima della verifica di rollback.
+6. Solo dopo il collaudo, rimuovere la vecchia App con conferma esplicita degli effetti sui dati.
 
-## Prossimi passi
-1. Recuperare i sorgenti originali dell'App dalla cartella locale `local_apps/cl_control_web` (su precedenti sistemi `addons/cl_control_web`) tramite accesso autorizzato ai file di Home Assistant o archivio sorgente.
-2. Importarli in un ramo di sviluppo con audit per credenziali, dati cliente e percorsi locali.
-3. Eseguire test backend/frontend e creare un checkpoint sulla beta funzionante.
-4. Applicare e testare la palette di `design-system/cl-blue-tech-premium.css` e poi integrare i componenti nel CSS principale.
-5. Eliminare la duplicazione di logica tra Web App e Core HACS usando API documentate.
-6. Distribuire sul solo impianto beta, verificare migrazione di impostazioni, immagini e marker e mantenere rollback.
-
-## Nota
-L'aggiornamento della Web App installata **non è stato eseguito** tramite questo repository. Non sostituire i file dell'App con soltanto gli asset recuperati dall'HTTP.
+Rollback: disabilitare/rimuovere solo la nuova integrazione `cl_control_web` e tornare alla vecchia App; evitare restore globale HA per un problema soltanto UI.
