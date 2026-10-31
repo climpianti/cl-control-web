@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.1**: sviluppo sul ramo `app/0.1.0-beta.1`; distribuzione dallo Store prevista dal ramo `main`.
+- `cl_control_web_next` **0.1.0-beta.2**: sviluppo sul ramo `app/0.1.0-beta.2`; distribuzione dallo Store prevista dal ramo `main`.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Questa è una **prima beta funzionale**: Home, Luci, RGBW, Multimedia. KNX in sola descrizione; niente planimetrie/energia.
@@ -19,8 +19,9 @@ Il progetto deve essere pubblicato sul ramo `main` e il repository GitHub deve a
 1. In Home Assistant OS aprire **Impostazioni → App → Installa App** (Store).
 2. Menu **⋮ → Repository**, aggiungere `https://github.com/climpianti/cl-control-web` e confermare.
 3. Cercare **CL Control Web Next** nello Store, quindi selezionare **Installa**.
-4. Avviare l'App e aprirla da **Apri interfaccia utente Web** (Ingress).
-5. Verificare dati e comandi, poi decidere se interrompere la vecchia App. Non disinstallarla senza backup.
+4. Avviare l'App e aprirla da **Apri interfaccia utente Web** (Ingress). Non usare il vecchio indirizzo `/cl-control-next`: apparteneva alla precedente integrazione di prova ed è un percorso diverso dall'App.
+5. Verificare che il percorso Ingress abbia **una sola barra finale**. In questa beta `ingress_entry` non è impostato, perché la pagina iniziale viene servita da `/`.
+6. Verificare dati e comandi, poi decidere se interrompere la vecchia App. Non disinstallarla senza backup.
 
 Se il repository non compare, aggiornare Store e pagina, poi controllare **Impostazioni → Sistema → Registri → Supervisor**. Non usare HACS: questa distribuzione è un'**App**, non una custom integration.
 
