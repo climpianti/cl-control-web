@@ -61,7 +61,7 @@ async def bootstrap(request):
                      "media_title","media_artist","source","unit_of_measurement","device_class"}
         }
         limited.append({"entity_id":eid,"state":item.get("state"),"attributes":allowed})
-    return web.json_response({"version":"0.1.0-beta.1","states":limited})
+    return web.json_response({"version":"0.1.0-beta.2","states":limited})
 
 def valid_control(obj):
     if not isinstance(obj,dict) or set(obj)-{"entity_id","action","data"}:
@@ -111,7 +111,7 @@ async def index(_):
     return web.FileResponse(STATIC/"index.html")
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.1"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.2"})
 
 async def start_session(app):
     app["session"]=ClientSession(timeout=ClientTimeout(total=8))
