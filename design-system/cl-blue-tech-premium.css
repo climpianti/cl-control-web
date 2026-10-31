@@ -1,0 +1,61 @@
+/* CL Control Web – CL Impianti Blue Tech Premium
+   Add AFTER assets/app.css. Visual-only, no API or state changes.
+   Draft for beta 0.2.1. */
+:root {
+  --cl-night:#061324;--cl-navy:#0b233c;--cl-panel:#123852;
+  --cl-blue:#19baff;--cl-green:#32e394;
+  --bg:#061324;--panel:#102840;--panel2:#163852;
+  --border:#2a4d68;--text:#f4f9ff;--muted:#a9c1d7;
+  --accent:#19baff;--sky:#19baff;--green:#32e394;
+  --radius:20px;--shadow:0 12px 34px rgba(0,8,23,.25);
+  --sidebar-bg:#071c31;--blue-soft:#19baff20;--blue-ink:#19baff;
+  --card-hover:#173b58;
+  color-scheme: dark;
+}
+:root[data-theme=light]{
+  --bg:#f1f6fa;--panel:#ffffff;--panel2:#eaf3f9;
+  --border:#d3e4f0;--text:#153249;--muted:#58758b;
+  --accent:#087fb8;--sky:#087fb8;--green:#108b62;
+  --radius:20px;--shadow:0 9px 26px rgba(15,60,95,.08);
+  --sidebar-bg:#ffffff;--blue-soft:#dceffc;--blue-ink:#087fb8;
+  --card-hover:#f1f8fd;color-scheme:light;
+}
+body{background:var(--bg);color:var(--text)}
+.sidebar{background:var(--sidebar-bg);border-right:1px solid var(--border)}
+.brand{position:relative}
+.brand::after{content:"";position:absolute;left:12px;right:12px;bottom:18px;height:1px;background:linear-gradient(90deg,var(--accent),transparent);opacity:.5}
+.nav button,.nav-footer>button[data-nav]{border-radius:13px}
+.nav button.active,.nav-footer>button.active{
+  background:color-mix(in srgb,var(--accent) 14%,var(--panel));
+  box-shadow:inset 3px 0 0 var(--accent);
+  color:var(--accent)
+}
+.header h1{letter-spacing:-.04em}
+.metric,.area-card,.quick-card,.light-card,.camera-tile,.energy-panel,.weather-panel,.login-card{
+  border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)
+}
+.metric,.area-card,.quick-card,.camera-tile,.energy-panel,.weather-panel,.login-card{background:var(--panel)}
+.area-card,.quick-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+@media(hover:hover){
+ .area-card:hover,.quick-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+}
+.light-card{
+  background:radial-gradient(ellipse at 95% 5%,rgba(110,76,172,.3),transparent 55%),
+             linear-gradient(125deg,#102d4d,#101b31 65%,#251b37);
+  border-color:#6398be62;color:#f4f9ff;box-shadow:0 12px 28px #0014263a
+}
+.light-card.is-on{background:radial-gradient(ellipse at 95% 5%,color-mix(in srgb,var(--light-color,#19baff) 22%,transparent),transparent 52%),linear-gradient(125deg,#102d4d,#101b31 65%,#251b37);border-color:#70b9dc88}
+.light-card .light-state{color:#bdcde0}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#061324}
+:root[data-theme=light] .btn.primary{color:#fff}
+.btn:focus-visible,.nav button:focus-visible,.light-card button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.floor-viewport{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.energy-flow,.energy-scene{border-radius:var(--radius)}
+@media(max-width:700px){
+  .area-card,.light-card,.metric,.camera-tile{border-radius:16px}
+  .main{padding-left:15px;padding-right:15px}
+}
+@media(prefers-reduced-motion:reduce){
+ .area-card,.quick-card{transition:none}
+ .area-card:hover,.quick-card:hover{transform:none}
+}
