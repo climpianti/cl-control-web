@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.1**: codice sorgente sul ramo `app/0.1.0-beta.1`.
+- `cl_control_web_next` **0.1.0-beta.1**: sviluppo sul ramo `app/0.1.0-beta.1`; distribuzione dallo Store prevista dal ramo `main`.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Questa è una **prima beta funzionale**: Home, Luci, RGBW, Multimedia. KNX in sola descrizione; niente planimetrie/energia.
@@ -12,16 +12,21 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Installazione Home Assistant OS
 
-Per un repository privato non accessibile allo Store Apps, il percorso più prevedibile è l'App locale.
+### Installazione diretta da repository pubblico
 
-1. Recuperare **la cartella `cl_control_web_next` completa**, senza rinominarne lo slug.
-2. Inserirla in `/addons/cl_control_web_next` (o nella cartella locale App che il proprio sistema usa).
-3. Aprire Impostazioni → App → Store e aggiornare i repository locali.
-4. Installare **CL Control Web Next**, avviarla e aprirla tramite **Apri interfaccia utente Web**.
-5. Testare dispositivi e navigazione. Non esporre la porta 8099 alla LAN: il frontend è pensato per Ingress autenticato.
-6. Solo dopo verifica e backup si valuterà la rimozione della vecchia App.
+Il progetto deve essere pubblicato sul ramo `main` e il repository GitHub deve avere visibilità **Public**.
 
-Una normale integrazione HACS **non** installa questa App.
+1. In Home Assistant OS aprire **Impostazioni → App → Installa App** (Store).
+2. Menu **⋮ → Repository**, aggiungere `https://github.com/climpianti/cl-control-web` e confermare.
+3. Cercare **CL Control Web Next** nello Store, quindi selezionare **Installa**.
+4. Avviare l'App e aprirla da **Apri interfaccia utente Web** (Ingress).
+5. Verificare dati e comandi, poi decidere se interrompere la vecchia App. Non disinstallarla senza backup.
+
+Se il repository non compare, aggiornare Store e pagina, poi controllare **Impostazioni → Sistema → Registri → Supervisor**. Non usare HACS: questa distribuzione è un'**App**, non una custom integration.
+
+### Alternativa: App locale
+
+Se il repository resta privato: copiare la sola cartella `cl_control_web_next` in `/addons/cl_control_web_next`, aggiornare lo Store delle App locali e installare da lì. Non esporre la porta 8099 alla LAN: il frontend è pensato per Ingress autenticato.
 
 ## Sicurezza
 
