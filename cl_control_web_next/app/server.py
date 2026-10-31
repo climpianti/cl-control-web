@@ -50,7 +50,7 @@ async def bootstrap(request):
     for item in states:
         eid = item.get("entity_id", "")
         domain = eid.split(".", 1)[0]
-        if domain not in {"light","media_player","sensor","binary_sensor","cover","climate","switch","sun"}:
+        if domain not in {"light","media_player","sensor","binary_sensor","cover","climate","switch","sun","weather","alarm_control_panel","camera","scene"}:
             continue
         attrs = item.get("attributes") or {}
         allowed = {
@@ -58,10 +58,10 @@ async def bootstrap(request):
             if k in {"friendly_name","brightness","hs_color","rgb_color","rgbw_color","rgbww_color",
                      "supported_color_modes","color_mode","color_temp_kelvin","min_color_temp_kelvin",
                      "max_color_temp_kelvin","supported_features","volume_level","is_volume_muted",
-                     "media_title","media_artist","source","unit_of_measurement","device_class"}
+                     "media_title","media_artist","source","unit_of_measurement","device_class","temperature","humidity","condition","forecast","entity_picture","supported_features"}
         }
         limited.append({"entity_id":eid,"state":item.get("state"),"attributes":allowed})
-    return web.json_response({"version":"0.1.0-beta.2","states":limited})
+    return web.json_response({"version":"0.1.0-beta.3","states":limited})
 
 def valid_control(obj):
     if not isinstance(obj,dict) or set(obj)-{"entity_id","action","data"}:
@@ -107,11 +107,28 @@ async def command(request):
     await ha_request(request,"POST",f"services/{dom}/{action}",{"entity_id":eid,**params})
     return web.json_response({"ok":True})
 
+
+async def areas(request):
+    """Read-only areas with registry-linked temperature/humidity, no direct user token."""
+    template = """{% set ns = namespace(items=[]) %}{% for a in areas() %}{% set ns.items = ns.items + [dict(id=a,name=area_name(a),temperature=area_entities(a)|select('match','sensor\\.')|list)] %}{% endfor %}{{ ns.items | to_json }}"""
+    try:
+        if not TOKEN:
+            raise web.HTTPServiceUnavailable(text="HA token unavailable")
+        async with request.app["session"].post(f"{CORE}/template",json={"template":template},headers={"Authorization":f"Bearer {TOKEN}"},allow_redirects=False) as res:
+            if res.status != 200:
+                raise web.HTTPBadGateway(text="HA areas unavailable")
+            value=await res.text()
+        data=json.loads(value)
+        return web.json_response({"areas":[{"id":a["id"],"name":a["name"],"entities":a["temperature"][:100]} for a in data][:100]})
+    except (ValueError,KeyError,TypeError) as exc:
+        LOG.warning("Invalid HA areas response: %s",type(exc).__name__)
+        raise web.HTTPBadGateway(text="HA areas response invalid") from exc
+
 async def index(_):
     return web.FileResponse(STATIC/"index.html")
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.2"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.3"})
 
 async def start_session(app):
     app["session"]=ClientSession(timeout=ClientTimeout(total=8))
@@ -124,6 +141,7 @@ def create_app():
     app.router.add_get("/",index)
     app.router.add_get("/api/health",health)
     app.router.add_get("/api/bootstrap",bootstrap)
+    app.router.add_get("/api/areas",areas)
     app.router.add_post("/api/command",command)
     app.router.add_static("/assets/",STATIC/"assets",show_index=False,follow_symlinks=False)
     return app
