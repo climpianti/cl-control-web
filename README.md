@@ -1,27 +1,36 @@
-# CL Control Web
+# CL Control Web Next
 
-Interfaccia domotica premium di **CL Impianti**, coordinata con [climpianti.net](https://www.climpianti.net/).
+Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Premium, sviluppata da zero.
 
-## Stato del progetto
-- **App installata di riferimento:** `CL Control Web 0.2.0-beta.6` su Home Assistant di test.
-- **Repository:** fase di recupero e consolidamento del codice originale.
-- **Design system:** bozza `design-system/cl-blue-tech-premium.css`, da integrare dopo collaudo.
-- **Nessun rilascio installabile da questo repository è ancora disponibile.**
+## Stato
 
-Non considerare i file pubblicati qui una copia completa dell'App. La Web App attuale utilizza Ingress e un backend con persistenza in `/data`: vanno importati anche backend, test, configurazioni degli ambienti di build e istruzioni di packaging.
+- `cl_control_web_next` **0.1.0-beta.1**: codice sorgente sul ramo `app/0.1.0-beta.1`.
+- Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
+- Integrazione Core `cl_control`: resta indipendente.
+- Questa è una **prima beta funzionale**: Home, Luci, RGBW, Multimedia. KNX in sola descrizione; niente planimetrie/energia.
+- NON ancora collaudata dentro Home Assistant. Verificare CI e QA prima dell'uso su impianti reali.
 
-## Architettura approvata
-- **CL Control Web:** interfaccia unica per cliente e installatore (home, planimetrie, luci RGBW, multimedia, energia).
-- [CL Control Core](https://github.com/climpianti/cl-control): integrazione HACS, API WebSocket, Discovery KNX/Modbus, scenari e servizi.
-- CL Power Control e CL Irrigation: integrazioni autonome dell'ecosistema.
+## Installazione Home Assistant OS
 
-## Regole di sicurezza
-- Nessuna credenziale o token Home Assistant in GitHub o nel frontend.
-- Non pubblicare `/data`, file `.env`, backup, planimetrie reali o dati dei clienti.
-- Prima di modificare l'App esistente: backup, test offline, verifica di compatibilità e piano rollback.
-- Non disinstallare `local_cl_control_web`: potrebbe eliminare i dati persistenti.
+Per un repository privato non accessibile allo Store Apps, il percorso più prevedibile è l'App locale.
 
-## Sviluppo
-La cartella `design-system/` contiene override CSS separati dal codice applicativo per favorire revisione e rollback. Non è ancora abilitata nell'App installata.
+1. Recuperare **la cartella `cl_control_web_next` completa**, senza rinominarne lo slug.
+2. Inserirla in `/addons/cl_control_web_next` (o nella cartella locale App che il proprio sistema usa).
+3. Aprire Impostazioni → App → Store e aggiornare i repository locali.
+4. Installare **CL Control Web Next**, avviarla e aprirla tramite **Apri interfaccia utente Web**.
+5. Testare dispositivi e navigazione. Non esporre la porta 8099 alla LAN: il frontend è pensato per Ingress autenticato.
+6. Solo dopo verifica e backup si valuterà la rimozione della vecchia App.
 
-Vedi [MIGRATION.md](MIGRATION.md) per i passaggi di recupero della sorgente e convergenza verso HACS.
+Una normale integrazione HACS **non** installa questa App.
+
+## Sicurezza
+
+- Il token `SUPERVISOR_TOKEN` viene usato dal backend, mai inviato al browser.
+- Nessuna porta host pubblicata. Solo Ingress autenticato.
+- Comandi HA ammessi: accensione/spegnimento `light`, luminosità e colore; play/pause, precedente/successivo e volume `media_player`.
+- Non sono implementati comandi sicurezza, serrature, allarmi o servizi generici.
+- L'App usa la sessione Ingress; non richiede una password dedicata.
+
+## Prossimi moduli
+
+Aree e piani, planimetrie, energia, Discovery KNX del Core, scene e AI Studio. Le funzioni vengono introdotte per beta successive con test e rollback.
