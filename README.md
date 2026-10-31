@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.2**: sviluppo sul ramo `app/0.1.0-beta.2`; distribuzione dallo Store prevista dal ramo `main`.
+- `cl_control_web_next` **0.1.0-beta.3**: sviluppo sul ramo `app/0.1.0-beta.3`; distribuzione dallo Store prevista dal ramo `main`.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Questa è una **prima beta funzionale**: Home, Luci, RGBW, Multimedia. KNX in sola descrizione; niente planimetrie/energia.

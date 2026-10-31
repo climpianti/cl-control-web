@@ -31,6 +31,7 @@ jobs:
           assert not a.get("ports")
           assert Path("cl_control_web_next/app/static/assets/app.js").exists()
           assert Path("cl_control_web_next/app/static/assets/app.css").exists()
+          assert Path("cl_control_web_next/app/static/assets/cl-logo.png").exists()
           PY
       - name: Test API validation
         run: python -m unittest discover -s tests -p 'test_app_*.py' -v
