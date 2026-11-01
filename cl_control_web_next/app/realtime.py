@@ -97,19 +97,20 @@ async def relay(request, *, token, websocket_url):
                     if not result.get("success"):
                         raise RuntimeError("HA state subscription unavailable")
                     await downstream.send_json({"type": "ready"})
-                    # Subscription is established; never time out an idle house.
-                    async for packet in upstream:
-                        if downstream.closed:
-                            break
-                        if packet.type == WSMsgType.TEXT:
-                            try:
-                                filtered = relay_event(json.loads(packet.data))
-                            except (ValueError, TypeError):
-                                continue
-                            if filtered:
-                                await downstream.send_json(filtered)
-                        elif packet.type in (WSMsgType.ERROR, WSMsgType.CLOSE, WSMsgType.CLOSED):
-                            break
+            # HA sends events when state changes; no polling or idle timeout.
+                # Subscription is established; never time out an idle house.
+                async for packet in upstream:
+                    if downstream.closed:
+                        break
+                    if packet.type == WSMsgType.TEXT:
+                        try:
+                            filtered = relay_event(json.loads(packet.data))
+                        except (ValueError, TypeError):
+                            continue
+                        if filtered:
+                            await downstream.send_json(filtered)
+                    elif packet.type in (WSMsgType.ERROR, WSMsgType.CLOSE, WSMsgType.CLOSED):
+                        break
         except TimeoutError:
             LOG.warning("Realtime handshake timed out")
             if not downstream.closed:
