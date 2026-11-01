@@ -68,7 +68,7 @@ def relay_event(message):
 
 
 async def relay(request, *, token, websocket_url):
-    """Authenticate upstream as App; browser receives no Supervisor token."""
+    """Authenticated upstream read-only state subscription; filtered downstream."""
     if not token:
         raise web.HTTPServiceUnavailable(text="Home Assistant unavailable")
     active = request.app.setdefault("realtime_clients", set())
@@ -79,10 +79,10 @@ async def relay(request, *, token, websocket_url):
     active.add(downstream)
     try:
         try:
-            async with asyncio.timeout(WS_TIMEOUT):
-                async with request.app["session"].ws_connect(
-                    websocket_url, heartbeat=30, max_msg_size=2 * 1024 * 1024
-                ) as upstream:
+            async with request.app["session"].ws_connect(
+                websocket_url, heartbeat=30, max_msg_size=2 * 1024 * 1024
+            ) as upstream:
+                async with asyncio.timeout(WS_TIMEOUT):
                     greeting = await upstream.receive_json()
                     if greeting.get("type") != "auth_required":
                         raise RuntimeError("Unexpected HA greeting")
@@ -96,9 +96,7 @@ async def relay(request, *, token, websocket_url):
                     result = await upstream.receive_json()
                     if not result.get("success"):
                         raise RuntimeError("HA state subscription unavailable")
-                    await downstream.send_json({"type": "ready"})
-            # HA sends events when state changes; no polling or idle timeout.
-                # Subscription is established; never time out an idle house.
+                await downstream.send_json({"type": "ready"})
                 async for packet in upstream:
                     if downstream.closed:
                         break
@@ -111,11 +109,7 @@ async def relay(request, *, token, websocket_url):
                             await downstream.send_json(filtered)
                     elif packet.type in (WSMsgType.ERROR, WSMsgType.CLOSE, WSMsgType.CLOSED):
                         break
-        except TimeoutError:
-            LOG.warning("Realtime handshake timed out")
-            if not downstream.closed:
-                await downstream.send_json({"type": "error", "message": "Realtime unavailable"})
-        except (OSError, RuntimeError, ClientError) as exc:
+        except (TimeoutError, OSError, RuntimeError, ClientError) as exc:
             LOG.warning("Realtime bridge unavailable: %s", type(exc).__name__)
             if not downstream.closed:
                 await downstream.send_json({"type": "error", "message": "Realtime unavailable"})
