@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.8**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.9**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
@@ -68,3 +68,8 @@ La configurazione di SENEC è esclusa dalla beta 7.
 ## Energia (beta 8)
 
 La pagina Energia legge i dati già disponibili da Home Assistant. Preferisce SENEC (potenza casa, fotovoltaico, rete, batteria e SOC) ai sensori energetici derivati di CL Power Control; segnala la fonte di ogni lettura e mostra il verso dei flussi. La potenza rete positiva indica prelievo, negativa indica immissione; la potenza stato batteria SENEC negativa indica scarica ed è normalizzata esclusivamente per la visualizzazione. Nessuna azione energetica viene inviata ai dispositivi; la configurazione di Power Control richiede il normale accesso installatore.
+
+
+## Smartphone, scenari e preferiti (beta 9)
+
+Da smartphone il menu in alto e sostituito dalla barra inferiore Home / Aree / Luci / Energia / Altro. Da Altro sono raggiungibili tutte le altre viste della Web App. La pagina Scenari offre un collegamento alla vista nativa `/cl-control/light-scenes` della dashboard Core, aperta nel contenitore Home Assistant con i permessi del vero utente connesso: non si accede all'archivio personale via token Supervisor. I preferiti delle singole luci restano nella dashboard Core. Per il momento la Web App rimane accessibile esclusivamente dagli amministratori e non concede accesso ai clienti non amministratori. Sono necessari test browser su telefono e collaudi reali prima della distribuzione.
