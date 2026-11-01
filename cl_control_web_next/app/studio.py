@@ -76,9 +76,11 @@ def intent_draft(prompt, states, current=None):
     instructions=[]
     def add(kind,title,entity_id=None):
         if len(base["widgets"])>=MAX_WIDGETS:return
-        ident=f"ai-{kind}-{len(base['widgets'])+1}"
+        n=1
+        ident=f"ai-{kind}-{n}"
         while any(w["id"]==ident for w in base["widgets"]):
-            ident=f"ai-{kind}-{len(base['widgets'])+2}"
+            n+=1
+            ident=f"ai-{kind}-{n}"
         item={"id":ident,"type":kind,"title":title}
         if entity_id:item["entity_id"]=entity_id
         base["widgets"].append(item)
@@ -92,6 +94,9 @@ def intent_draft(prompt, states, current=None):
             instructions.append(ent["name"])
     if not instructions:
         # No implicit replacement: preserve current layout and explain limitations.
+        if reset:
+            base = deepcopy(DEFAULT)
+            base["revision"] = current["revision"] if current is not None else 0
         return {"mode":"offline-rules","supported":False,"draft":validate_layout(base,{e["entity_id"] for e in entities}),
                 "explanation":"Richiesta non riconosciuta dalle regole locali. Modifica i widget nell'editor oppure collega in futuro un provider AI."}
     result=validate_layout(base,{e["entity_id"] for e in entities})
