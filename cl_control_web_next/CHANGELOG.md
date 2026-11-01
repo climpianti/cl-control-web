@@ -1,3 +1,11 @@
+# 0.1.0-beta.14.2
+
+- Aperture: slider percentuale 0–100, pulsanti −/+ con incrementi da 5%, anteprima valore e conferma separata tramite Applica.
+- Mantiene i comandi Apri/Stop/Chiudi; nessun movimento durante lo scorrimento dello slider.
+- Valori limitati a 0–100%, stato non disponibile protetto; grafica Blue Tech Premium responsive e supporto tastiera.
+- Test frontend: struttura, funzioni, assenza di invii prematuri, limiti, entita non disponibili.
+- Modifiche limitate al frontend e al numero versione, senza cambiare API o dati persistenti.
+
 # 0.1.0-beta.14.1
 
 - Fix AI Studio: evita i render in tempo reale mentre il campo textarea riceve input, mantenendo focus e testo durante la digitazione.
