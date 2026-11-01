@@ -8,6 +8,10 @@ import os
 from pathlib import Path
 from aiohttp import web, ClientSession, ClientTimeout, ClientError
 try:
+    from .realtime import filter_state, relay as realtime_relay
+except ImportError:
+    from realtime import filter_state, relay as realtime_relay
+try:
     from .media import profile as media_profile, plan as media_plan
 except ImportError:  # Direct execution in the Home Assistant App container.
     from media import profile as media_profile, plan as media_plan
@@ -57,22 +61,14 @@ async def ha_request(request: web.Request, method: str, endpoint: str, data=None
 
 async def bootstrap(request):
     states = await ha_request(request, "GET", "states")
-    limited = []
-    for item in states:
-        eid = item.get("entity_id", "")
-        domain = eid.split(".", 1)[0]
-        if domain not in {"light","media_player","sensor","binary_sensor","cover","climate","switch","sun","weather","alarm_control_panel","camera","scene"}:
-            continue
-        attrs = item.get("attributes") or {}
-        allowed = {
-            k: v for k,v in attrs.items()
-            if k in {"current_position","current_temperature","current_humidity","hvac_modes","hvac_action","min_temp","max_temp","target_temp_step","preset_modes","preset_mode","fan_modes","fan_mode","friendly_name","brightness","hs_color","rgb_color","rgbw_color","rgbww_color",
-                     "supported_color_modes","color_mode","color_temp_kelvin","min_color_temp_kelvin",
-                     "max_color_temp_kelvin","supported_features","volume_level","is_volume_muted",
-                     "media_title","media_artist","source","source_list","unit_of_measurement","device_class","temperature","humidity","condition","forecast","entity_picture","supported_features"}
-        }
-        limited.append({"entity_id":eid,"state":item.get("state"),"attributes":allowed})
-    return web.json_response({"version":"0.1.0-beta.6","states":limited})
+    return web.json_response({
+        "version": "0.1.0-beta.7",
+        "states": [safe for item in states if (safe := filter_state(item)) is not None],
+    })
+
+
+async def realtime(request):
+    return await realtime_relay(request, token=TOKEN, websocket_url=core_websocket_url(CORE))
 
 def valid_control(obj):
     if not isinstance(obj,dict) or set(obj)-{"entity_id","action","data"}:
@@ -223,7 +219,7 @@ async def media_command(request):
     return web.json_response({"ok": True})
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.6"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.7"})
 
 async def start_session(app):
     app["session"]=ClientSession(timeout=ClientTimeout(total=8))
@@ -236,6 +232,7 @@ def create_app():
     app.router.add_get("/",index)
     app.router.add_get("/api/health",health)
     app.router.add_get("/api/bootstrap",bootstrap)
+    app.router.add_get("/api/realtime",realtime)
     app.router.add_get("/api/areas",areas)
     app.router.add_post("/api/command",command)
     app.router.add_get("/api/media-profiles",media_profiles)
