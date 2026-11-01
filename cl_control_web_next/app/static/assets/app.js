@@ -7,6 +7,53 @@ let page="Home",areaId="",search="",data=[],areas=[],error="",busy=false;
 let dashboardLayout=null,dashboardDraft=null,layoutMessage="",layoutSaving=false;
 let layoutCatalog=null,layoutValidated=false;
 let studioInstruction="",studioExplanation="",studioBusy=false,studioSupported=false;
+// Position drafts are UI-only: +, -, and slider never actuate a cover.
+const coverPositionDrafts=new Map();
+function clampCoverPosition(value){return Math.min(100,Math.max(0,Math.round(Number(value))))}
+function coverDesiredPosition(s){
+ const current=Number.isFinite(s.attributes?.current_position)?clampCoverPosition(s.attributes.current_position):null;
+ if(!coverPositionDrafts.has(s.entity_id))return current;
+ const draft=coverPositionDrafts.get(s.entity_id);
+ if(current!==null&&draft===current)coverPositionDrafts.delete(s.entity_id);
+ return draft;
+}
+function coverPositionControl(s){
+ const value=coverDesiredPosition(s),disabled=!valid(s)||value===null,v=value===null?0:value,detail=esc(name(s));
+ return '<form class="cover-position-form" data-cover-position-form data-entity="'+esc(s.entity_id)+'">'+
+ '<div class="cover-position-heading"><span>Apertura desiderata</span><output data-cover-position-output aria-live="polite">'+(value===null?'—':v+'%')+'</output></div>'+
+ '<div class="cover-position-row">'+
+ '<button type="button" class="cover-step" data-cover-step="-5" aria-label="Diminuisci apertura di 5 percento · '+detail+'" '+(disabled?'disabled':'')+'>−</button>'+
+ '<input type="range" data-cover-position-slider min="0" max="100" step="1" value="'+v+'" style="--cover-fill:'+v+'%" aria-label="Apertura desiderata · '+detail+'" '+(disabled?'disabled':'')+'>'+
+ '<button type="button" class="cover-step" data-cover-step="5" aria-label="Aumenta apertura di 5 percento · '+detail+'" '+(disabled?'disabled':'')+'>+</button></div>'+
+ '<div class="cover-position-footer"><span data-cover-position-hint>'+(value===null?'Posizione attuale non disponibile':'0% chiusa · 100% aperta')+'</span>'+
+ '<button type="submit" class="action cover-apply" '+(disabled?'disabled':'')+'>Applica</button></div></form>';
+}
+function updateCoverDraft(form,value){
+ const range=form.querySelector('[data-cover-position-slider]');
+ if(!range||range.disabled||!Number.isFinite(Number(value)))return;
+ const v=clampCoverPosition(value);
+ range.value=String(v);
+ range.style.setProperty('--cover-fill',v+'%');
+ coverPositionDrafts.set(form.dataset.entity,v);
+ form.querySelector('[data-cover-position-output]').textContent=v+'%';
+ form.querySelector('[data-cover-position-hint]').textContent='Premi Applica per confermare';
+}
+function bindCoverPositionControls(root){
+ root.querySelectorAll('[data-cover-position-form]').forEach(form=>{
+  const range=form.querySelector('[data-cover-position-slider]');
+  range?.addEventListener('input',()=>updateCoverDraft(form,range.value));
+  form.querySelectorAll('[data-cover-step]').forEach(btn=>btn.addEventListener('click',()=>updateCoverDraft(form,Number(range.value)+Number(btn.dataset.coverStep))));
+  form.addEventListener('submit',e=>{
+   e.preventDefault();
+   const id=form.dataset.entity,s=byId(id);
+   if(busy||!form.reportValidity()||range?.disabled||!s||!valid(s)||!(Number(s.attributes?.supported_features||0)&4))return;
+   const position=clampCoverPosition(range.value);
+   coverPositionDrafts.set(id,position);
+   command(id,'set_cover_position',{position});
+  });
+ });
+}
+
 const layoutTypes=[["systems","Sistemi"],["areas","Aree"],["cl_systems","Sistemi CL"],["energy","Energia"],["entity","Singola entità"]];
 function cloneLayout(v){return JSON.parse(JSON.stringify(v))}
 function getEditorDraft(){if(!dashboardDraft&&dashboardLayout)dashboardDraft=cloneLayout(dashboardLayout);return dashboardDraft}
@@ -286,7 +333,7 @@ function button(id,act,title,ok=true){return '<button class="action" data-entity
 function slider(s,type,label,min,max,value){return '<label class="range-label">'+esc(label)+'<input type="range" data-slider="'+type+'" data-entity="'+esc(s.entity_id)+'" min="'+min+'" max="'+max+'" value="'+Number(value||0)+'" '+(!valid(s)?'disabled':'')+'></label>'}
 function other(){let key={"Luci":"light","Multimedia":"media_player","Aperture":"cover","Clima":"climate","Sicurezza":"alarm_control_panel","Scenari":"scene"}[page];if(page==="Scenari")return nativeScenesPage();if(page==="Personalizza")return renderLayoutEditor();if(page==="AI Studio")return renderStudio();if(page==="Altro")return morePage();if(page==="Aree")return '<h2>Le tue aree</h2><div class="area-grid wide">'+cardsForArea()+'</div>';if(page==="Area"){let a=areas.find(a=>a.id===areaId);if(!a)return '<p>Area non disponibile</p>';let devices=data.filter(s=>a.entities.includes(s.entity_id)&&["light","media_player","cover","climate"].some(d=>s.entity_id.startsWith(d+".")));return '<button class="action" data-page="Aree">‹ Tutte le aree</button><h2>'+esc(a.name)+'</h2><div class="devices">'+devices.map(s=>card(s)).join("")+'</div>'}if(page==="Irrigazione"){let s=by("sensor").filter(x=>x.entity_id.startsWith("sensor.cl_irrigation_")&&valid(x));return '<h2>CL Irrigation</h2><div class="devices">'+s.slice(0,12).map(x=>'<div class="device-card"><strong>'+esc(name(x))+'</strong><p>'+esc(x.state)+' '+esc(x.attributes?.unit_of_measurement||"")+'</p></div>').join("")+'</div>'}if(page==="Energia")return energyDashboard();if(page==="Assistenza")return '<div class="device-card"><h2>Assistenza CL Impianti</h2><p>Per richieste tecniche e assistenza contatta CL Impianti.</p><a href="https://www.climpianti.net/contatti.html" target="_blank" rel="noopener">Contatti e assistenza</a></div>';let ds=key?by(key):[];if(page==="Sicurezza"&&!ds.length)return '<h2>Sicurezza</h2><div class="empty">Nessuna centrale antifurto esposta come entità Home Assistant. Controlla le integrazioni Risco/INIM.</div>';return '<div class="content-heading"><span class="list-caption">Dispositivi</span><input id="search" placeholder="Cerca dispositivo" value="'+esc(search)+'" aria-label="Cerca dispositivi"></div><div class="devices">'+ds.filter(x=>name(x).toLowerCase().includes(search.toLowerCase())).map(s=>card(s)).join("")+'</div>'}
 async function api(path,options={}){const r=await fetch("api/"+path,{credentials:"same-origin",cache:"no-store",...options});if(!r.ok)throw Error("HTTP "+r.status);return r.json()}
-async function command(id,action,params={}){if(busy)return;const focusedSlider=document.activeElement?.dataset?.slider;busy=true;document.querySelectorAll("[data-action], [data-slider], [data-comfort-select], [data-comfort-form] input, [data-comfort-form] button").forEach(x=>x.disabled=true);try{await api("command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity_id:id,action,data:params})});await refresh()}catch(e){error="Comando non riuscito: "+e.message;render()}finally{busy=false;if(detailId){const id=detailId,trigger=detailTrigger;openDetail(id);detailTrigger=trigger;if(focusedSlider)document.querySelectorAll("#light-dialog [data-slider]").forEach(x=>{if(x.dataset.slider===focusedSlider)x.focus()});document.querySelector(".dialog-feedback").textContent=error||"Comando inviato"}else render()}}
+async function command(id,action,params={}){if(busy)return;if(id.startsWith('cover.')&&['open_cover','close_cover','stop_cover'].includes(action))coverPositionDrafts.delete(id);const focusedSlider=document.activeElement?.dataset?.slider;busy=true;document.querySelectorAll("[data-action], [data-slider], [data-comfort-select], [data-comfort-form] input, [data-comfort-form] button, [data-cover-position-form] button, [data-cover-position-slider]").forEach(x=>x.disabled=true);try{await api("command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity_id:id,action,data:params})});await refresh()}catch(e){error="Comando non riuscito: "+e.message;render()}finally{busy=false;if(detailId){const id=detailId,trigger=detailTrigger;openDetail(id);detailTrigger=trigger;if(focusedSlider)document.querySelectorAll("#light-dialog [data-slider]").forEach(x=>{if(x.dataset.slider===focusedSlider)x.focus()});document.querySelector(".dialog-feedback").textContent=error||"Comando inviato"}else render()}}
 
 function lightVisual(s){
  const a=s?.attributes||{},m=a.supported_color_modes||[],dimmable=m.some(x=>['brightness','rgb','rgbw','rgbww','color_temp','hs','xy','white'].includes(x));
@@ -325,7 +372,7 @@ document.querySelectorAll("[data-move-widget]").forEach(el=>el.addEventListener(
 document.querySelectorAll("[data-remove-widget]").forEach(el=>el.addEventListener("click",()=>removeLayoutWidget(Number(el.dataset.removeWidget))));
 document.querySelector("[data-layout-save]")?.addEventListener("click",saveDashboard);
 document.querySelector("[data-layout-cancel]")?.addEventListener("click",()=>{dashboardDraft=null;layoutValidated=false;layoutMessage="Modifiche annullate";render()});
-paintLights(document);bindControls(document);document.querySelectorAll("[data-remote]").forEach(b=>b.onclick=()=>openRemote(b.dataset.remote));document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>openDetail(b.dataset.detail));document.querySelector("#search")?.addEventListener("input",e=>{search=e.target.value;let pos=e.target.selectionStart;render();const b=document.querySelector("#search");b.focus();b.setSelectionRange(pos,pos)})}
+paintLights(document);bindControls(document);bindCoverPositionControls(document);document.querySelectorAll("[data-remote]").forEach(b=>b.onclick=()=>openRemote(b.dataset.remote));document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>openDetail(b.dataset.detail));document.querySelector("#search")?.addEventListener("input",e=>{search=e.target.value;let pos=e.target.selectionStart;render();const b=document.querySelector("#search");b.focus();b.setSelectionRange(pos,pos)})}
 async function refresh(){try{const res=await api("bootstrap");data=res.states||[];error="";render()}catch(e){error="Connessione Home Assistant: "+e.message;render()}}
 async function loadAreas(){try{const res=await api("areas");areas=res.areas||[];render()}catch(e){areas=[];render()}}
 
@@ -334,7 +381,7 @@ function comfortCard(s){
  const labels={closed:'Chiusa',open:'Aperta',opening:'In apertura',closing:'In chiusura',off:'Spento',heat:'Riscaldamento',cool:'Raffrescamento',auto:'Automatico',heat_cool:'Automatico caldo/freddo',dry:'Deumidificazione',fan_only:'Ventilazione',unavailable:'Non disponibile',unknown:'Stato sconosciuto'};
  let controls='';
  if(cover){controls='<div class="actions">'+[[1,'open_cover','Apri'],[8,'stop_cover','Stop'],[2,'close_cover','Chiudi']].filter(x=>f&x[0]).map(x=>button(s.entity_id,x[1],x[2],ok)).join('')+'</div>';
- if(f&4)controls+=comfortNumber(s,'set_cover_position','position','Apertura desiderata (%)',0,100,1,a.current_position);
+ if(f&4)controls+=coverPositionControl(s);
  }else{
  const select=(key,action,title,values,current)=>Array.isArray(values)&&values.length?'<label class="range-label">'+title+'<select data-comfort-select="'+action+'" data-key="'+key+'" data-entity="'+esc(s.entity_id)+'" '+(!ok?'disabled':'')+'><option value="" disabled '+(!values.includes(current)?'selected':'')+'>Seleziona</option>'+values.map(v=>'<option value="'+esc(v)+'" '+(current===v?'selected':'')+'>'+esc(labels[v]||v)+'</option>').join('')+'</select></label>':'';
  controls+=select('hvac_mode','set_hvac_mode','Modalità',a.hvac_modes,s.state);
@@ -362,7 +409,7 @@ function applyStateDelta(message){
  return true;
 }
 function refreshAllowed(){
- return !document.hidden&&!busy&&!detailId&&!remoteId&&!document.querySelector("input:focus,select:focus");
+ return !document.hidden&&!busy&&!detailId&&!remoteId&&!document.querySelector("input:focus,textarea:focus,select:focus,[contenteditable]:focus");
 }
 function startRealtime(){
  if(typeof WebSocket==="undefined"||document.hidden||realtimeSocket)return;

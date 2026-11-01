@@ -216,3 +216,74 @@ test('AI Studio may hand draft to editor, but cannot save without server validat
  assert.match(run('renderLayoutEditor()'),/data-layout-save disabled/);
  assert(source.includes('api("studio/draft"'));
 });
+
+
+test('beta14.1: active AI Studio textarea stops realtime repaints while typing',()=>{
+ const allowed=run(`(()=>{const original=document.querySelector;document.querySelector=selector=>selector.includes('textarea:focus')?{id:'studio-prompt'}:null;try{return refreshAllowed()}finally{document.querySelector=original}})()`);
+ assert.equal(allowed,false);
+});
+
+test('beta14.1: widget preview grid never forces narrow three-column energy tiles',()=>{
+ const css=fs.readFileSync(require('node:path').join(__dirname,'../cl_control_web_next/app/static/assets/app.css'),'utf8');
+ assert(css.includes('.layout-preview-shield .dynamic-widgets{grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr))'));
+ assert(css.includes('.dynamic-widgets .cl-grid{grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))'));
+ assert(css.includes('.dynamic-widgets .system-grid,.dynamic-widgets .area-grid{grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))'));
+});
+
+test('beta14.2 cover cards use precise 0-100 slider, +/-5 controls, and no editable number field',()=>{
+ const html=run("comfortCard({entity_id:'cover.bagno',state:'open',attributes:{friendly_name:'Bagno',supported_features:15,current_position:11}})");
+ assert.match(html,/data-cover-position-form/);
+ assert.match(html,/data-cover-position-slider min="0" max="100" step="1" value="11"/);
+ assert.match(html,/data-cover-step="-5"/);
+ assert.match(html,/data-cover-step="5"/);
+ assert.match(html,/11%/);
+ assert.match(html,/type="submit" class="action cover-apply"/);
+ assert(!html.includes('type="number"'));
+ assert.match(html,/data-action="open_cover"/);
+ assert.match(html,/data-action="stop_cover"/);
+ assert.match(html,/data-action="close_cover"/);
+});
+test('beta14.2 cover unavailable and missing position disable controls',()=>{
+ const a=run("comfortCard({entity_id:'cover.a',state:'unavailable',attributes:{supported_features:15,current_position:40}})");
+ assert.match(a,/data-cover-position-slider[^>]*disabled/);
+ const b=run("comfortCard({entity_id:'cover.b',state:'closed',attributes:{supported_features:15}})");
+ assert.match(b,/Posizione attuale non disponibile/);
+ assert.match(b,/data-cover-position-slider[^>]*disabled/);
+ const c=run("comfortCard({entity_id:'cover.c',state:'closed',attributes:{supported_features:3,current_position:0}})");
+ assert(!c.includes('data-cover-position-form'));
+});
+test('beta14.2 controls hold changes locally until Apply and constrain 0-100',()=>{
+ const result=JSON.parse(JSON.stringify(run(`(()=>{
+  const savedCommand=command,savedData=data;
+  coverPositionDrafts.clear();
+  data=[{entity_id:'cover.test',state:'open',attributes:{supported_features:15,current_position:11}}];
+  let outgoing=[];
+  const callbacks={};
+  const range={value:'11',disabled:false,style:{setProperty(){}},addEventListener(name,callback){callbacks['range_'+name]=callback}};
+  const output={textContent:'11%'},hint={textContent:'0% chiusa'};
+  const buttons=[-5,5].map(step=>({dataset:{coverStep:String(step)},addEventListener(name,cb){callbacks['step_'+step]=cb}}));
+  const form={dataset:{entity:'cover.test'},reportValidity(){return true},querySelector(selector){return selector==='[data-cover-position-slider]'?range:selector==='[data-cover-position-output]'?output:selector==='[data-cover-position-hint]'?hint:null},querySelectorAll(){return buttons},addEventListener(name,cb){callbacks['submit']=cb}};
+  command=(id,action,data)=>{outgoing.push({id,action,data})};
+  try{
+   bindCoverPositionControls({querySelectorAll(){return [form]}});
+   callbacks['step_5']();const up=Number(range.value);
+   callbacks['step_-5']();const down=Number(range.value);
+   range.value='99';callbacks.range_input();callbacks['step_5']();
+   const upper=Number(range.value),before=outgoing.length;
+   range.value='2';callbacks.range_input();callbacks['step_-5']();
+   const lower=Number(range.value);
+   range.value='37';callbacks.range_input();
+   const retained=comfortCard(data[0]).includes('value="37"');
+   callbacks.submit({preventDefault(){}});
+   return {up,down,upper,lower,before,retained,output:output.textContent,outgoing};
+  }finally{command=savedCommand;data=savedData;coverPositionDrafts.clear()}
+ })()`)));
+ assert.equal(result.up,16);
+ assert.equal(result.down,11);
+ assert.equal(result.upper,100);
+ assert.equal(result.lower,0);
+ assert.equal(result.before,0);
+ assert.equal(result.retained,true);
+ assert.equal(result.output,'37%');
+ assert.deepEqual(result.outgoing,[{id:'cover.test',action:'set_cover_position',data:{position:37}}]);
+});

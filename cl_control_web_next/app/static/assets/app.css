@@ -131,7 +131,11 @@ svg{width:1em;height:1em;flex-shrink:0;vertical-align:middle}
 .layout-editor-actions .action:disabled{opacity:.4;cursor:not-allowed}
 .layout-editor-preview{background:linear-gradient(140deg,#0c2b45,#081c32)}
 .layout-preview-shield{isolation:isolate}
-.layout-preview-shield .dynamic-widgets{grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));pointer-events:none}
+.layout-preview-shield .dynamic-widgets{grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));pointer-events:none}
+/* Keep nested widget tiles readable according to the actual panel width, not the viewport. */
+.dynamic-widgets .system-grid,.dynamic-widgets .area-grid{grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))}
+.dynamic-widgets .cl-grid{grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))}
+.dynamic-widgets .mini strong,.dynamic-widgets .area-tile strong,.dynamic-widgets .cl-tile strong{overflow-wrap:break-word;word-break:normal}
 .layout-preview-shield :is(button,input,select,a){pointer-events:none}
 @media(max-width:1150px){.layout-editor-grid{grid-template-columns:minmax(0,1fr)}.layout-edit-rows{max-height:none}}
 @media(max-width:560px){.layout-editor-controls,.layout-editor-preview{padding:13px}.layout-edit-buttons{gap:4px}.layout-edit-buttons button{font-size:12px}.layout-editor-actions .action{width:100%}}
@@ -152,3 +156,23 @@ svg{width:1em;height:1em;flex-shrink:0;vertical-align:middle}
 .studio-response,.studio-next{margin-top:18px;border-left:3px solid #22bdea;background:#14527b35;padding:15px;border-radius:8px;color:#d3efff}
 .studio-next p{line-height:1.6}
 @media(max-width:560px){.studio-panel form>.action{width:100%}.studio-mode{font-size:11px}}
+
+/* Beta 14.2: precise cover position control, no actuation until Apply. */
+.cover-position-form{display:grid;gap:12px;margin:21px 0 2px;padding-top:17px;border-top:1px solid #315571}
+.cover-position-heading,.cover-position-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+.cover-position-heading span{font-size:13px;color:#c5deee;font-weight:650}
+.cover-position-heading output{font-size:23px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;color:#65dbff}
+.cover-position-row{display:grid;grid-template-columns:46px minmax(0,1fr) 46px;gap:11px;align-items:center;min-width:0}
+.cover-step{width:46px;height:46px;border:1px solid #438eae;border-radius:13px;background:linear-gradient(140deg,#17577a,#11334f);color:#ebfaff;font-size:25px;line-height:1;display:grid;place-items:center;touch-action:manipulation}
+.cover-step:hover:not(:disabled){border-color:#57ddff;background:#1c698d}
+.cover-step:disabled,.cover-position-row input:disabled{opacity:.35;cursor:not-allowed}
+.cover-position-row input[type=range]{width:100%;min-width:0;height:36px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;accent-color:#45d6ff}
+.cover-position-row input[type=range]::-webkit-slider-runnable-track{height:7px;border:1px solid #4381a4;border-radius:999px;background:linear-gradient(90deg,#40cfff 0%,#40cfff var(--cover-fill),#254960 var(--cover-fill),#254960 100%)}
+.cover-position-row input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:23px;height:23px;border-radius:50%;border:3px solid #ecfcff;background:#16b8ed;box-shadow:0 0 0 4px #18b9ed33;margin-top:-9px}
+.cover-position-row input[type=range]::-moz-range-track{height:7px;border:1px solid #4381a4;border-radius:999px;background:#254960}
+.cover-position-row input[type=range]::-moz-range-progress{height:7px;border-radius:999px;background:#40cfff}
+.cover-position-row input[type=range]::-moz-range-thumb{width:19px;height:19px;border-radius:50%;border:3px solid #ecfcff;background:#16b8ed;box-shadow:0 0 0 4px #18b9ed33}
+.cover-position-row input[type=range]:focus-visible{outline:2px solid #4bd7ff;outline-offset:4px;border-radius:10px}
+.cover-position-footer span{font-size:11px;line-height:1.3;color:#9bbdd1}
+.cover-apply{min-height:45px;min-width:94px;font-weight:700;flex-shrink:0}
+@media(max-width:560px){.cover-position-row{grid-template-columns:43px minmax(0,1fr) 43px;gap:9px}.cover-step{width:43px;height:43px}.cover-position-form{gap:11px}}
