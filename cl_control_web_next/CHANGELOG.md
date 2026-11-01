@@ -1,3 +1,12 @@
+# 0.1.0-beta.13
+
+- Editor visuale dashboard: modifica titolo e singoli widget, scegli entita reali, aggiungi e rimuovi widget, riordina con controlli accessibili.
+- Catalogo backend solo per Ingress con tipi supportati e nomi delle entita; niente stati, credenziali o attributi privati.
+- Ogni modifica invalida l'anteprima precedente. Verifica con schema server prima dell'approvazione e salvataggio esplicito.
+- Anteprima non interattiva; nessun comando ai dispositivi durante la progettazione.
+- Modello persistente beta 12 invariato; salvataggio con controllo di revisione e conferma.
+- Futura AI Studio potra usare lo stesso catalogo e schema JSON senza eseguire codice generato.
+
 # 0.1.0-beta.12
 
 - Corretto il volume persistente Supervisor `/data` inizialmente root-owned: all'avvio vengono preparati permessi esclusivi per l'utente applicativo e poi il processo Python viene eseguito con uid 10001 tramite gosu.
