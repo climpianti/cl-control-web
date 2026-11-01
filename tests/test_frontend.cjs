@@ -120,7 +120,7 @@ test('mobile navigation has five distinct destinations and represents nested pag
 test('saved scenes stay owned by Core and open its canonical native route',()=>{
  assert.equal(run('CORE_SCENES_PATH'),'/cl-control/light-scenes');
  const page=run('nativeScenesPage()');
- assert.match(page,/href="\\/cl-control\\/light-scenes"/);
+ assert(page.includes('href="/cl-control/light-scenes"'));
  assert.match(page,/target="_top"/);
  assert.match(page,/archivio personale per utente/);
  assert(!source.includes('SUPERVISOR_TOKEN'));
