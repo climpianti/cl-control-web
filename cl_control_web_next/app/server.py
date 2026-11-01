@@ -9,6 +9,10 @@ from pathlib import Path
 from aiohttp import web, ClientSession, ClientTimeout, ClientError
 from copy import deepcopy
 try:
+    from .studio_llm import read_options, provider_status, generate_layout
+except ImportError:
+    from studio_llm import read_options, provider_status, generate_layout
+try:
     from .studio import intent_draft
 except ImportError:
     from studio import intent_draft
@@ -75,7 +79,7 @@ async def ha_request(request: web.Request, method: str, endpoint: str, data=None
 async def bootstrap(request):
     states = await ha_request(request, "GET", "states")
     return web.json_response({
-        "version": "0.1.0-beta.14",
+        "version": "0.1.0-beta.15",
         "states": [safe for item in states if (safe := filter_state(item)) is not None],
     })
 
@@ -238,8 +242,16 @@ async def access_diagnostics(request):
     context = identity_from_ingress(request.remote, request.headers)
     return web.json_response(access_summary(context))
 
+async def studio_status(request):
+    """Return only active provider metadata, never API keys or raw options."""
+    ctx = identity_from_ingress(request.remote, request.headers)
+    if not ctx.ingress_verified:
+        raise web.HTTPForbidden(text="Ingress authentication required")
+    return web.json_response(provider_status(read_options()))
+
+
 async def studio_draft(request):
-    """Offline intent-to-layout proposal. No external AI and no device commands."""
+    """Opt-in LLM or offline planner. Only produces a draft; no device actions."""
     context = identity_from_ingress(request.remote, request.headers)
     if not context.ingress_verified:
         raise web.HTTPForbidden(text="Ingress authentication required")
@@ -249,14 +261,19 @@ async def studio_draft(request):
         payload = await request.json()
         if not isinstance(payload, dict) or set(payload) != {"instruction"}:
             raise ValueError("Formato richiesta non valido")
+        # Validate length before fetching states or calling any external provider.
+        instruction = payload["instruction"]
+        if not isinstance(instruction, str) or not 3 <= len(instruction.strip()) <= 700:
+            raise ValueError("Richiesta non valida (3-700 caratteri)")
         states = await ha_request(request, "GET", "states")
-        proposal = intent_draft(payload["instruction"], states, request.app["layout_store"].snapshot())
+        proposal = await generate_layout(
+            request.app["session"], read_options(), instruction,
+            states, request.app["layout_store"].snapshot()
+        )
     except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
         raise web.HTTPBadRequest(text=str(exc)) from exc
     return web.json_response({
-        "status": "draft",
-        "applied": False,
-        "provider": "offline-rules",
+        "status": "draft", "applied": False,
         **proposal,
     })
 
@@ -325,7 +342,7 @@ async def save_layout(request):
 
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.14"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.15"})
 
 async def start_session(app):
     await app["layout_store"].load()
@@ -342,6 +359,7 @@ def create_app():
     app.router.add_get("/api/layout",get_layout)
     app.router.add_get("/api/layout/catalog",layout_catalog)
     app.router.add_post("/api/studio/draft",studio_draft)
+    app.router.add_get("/api/studio/status",studio_status)
     app.router.add_post("/api/layout/preview",preview_layout)
     app.router.add_post("/api/layout/save",save_layout)
     app.router.add_get("/api/access",access_diagnostics)
