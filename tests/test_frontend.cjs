@@ -194,3 +194,25 @@ test('beta13 draft change invalidates an approved preview and rejects noncatalog
  assert.equal(result.title,'Villa');
  assert.equal(result.revision,1);
 });
+
+
+test('AI Studio is visibly local rules only, not an LLM',()=>{
+ const html=run('renderStudio()');
+ assert.match(html,/Motore locale sperimentale/);
+ assert.match(html,/AI generativa non collegata/);
+ assert.match(html,/data-studio-example/);
+ assert.match(html,/studio-form/);
+ assert(!html.includes('data-studio-editor'));
+});
+test('AI Studio may hand draft to editor, but cannot save without server validation',()=>{
+ const html=run(`(()=>{
+  dashboardDraft={schema_version:1,revision:0,title:'Casa',widgets:[{id:'energy',type:'energy',title:'Energia'}]};
+  studioSupported=true;layoutValidated=false;studioExplanation='Proposta locale';
+  return renderStudio();
+ })()`);
+ assert.match(html,/data-studio-editor/);
+ assert.match(html,/Proposta creata, ma non salvata/);
+ assert.equal(run('layoutValidated'),false);
+ assert.match(run('renderLayoutEditor()'),/data-layout-save disabled/);
+ assert(source.includes('api("studio/draft"'));
+});
