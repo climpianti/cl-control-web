@@ -1,3 +1,12 @@
+# 0.1.0-beta.10
+
+- Sicurezza: verifica esplicita dello stato live e delle capacita supportate prima dei comandi luci e multimedia.
+- Base futura ruoli cliente/installatore: rilevamento ID utente HA esclusivamente dal proxy Ingress attendibile.
+- Endpoint /api/access senza identificatori personali per verificare presenza e attendibilita dell'identita Ingress.
+- Nessuna attribuzione automatica di privilegi installatore da header client; nessun accesso cliente attivato.
+- La Web App rimane panel_admin=true; per i clienti e ancora necessaria una vera integrazione con i permessi HA per utente e per entita.
+- Protezione contro spoofing di identita testata; SENEC, Power Control e impianti non modificati.
+
 # 0.1.0-beta.9
 
 - Nuova navigazione smartphone fissa in basso, cinque sezioni: Home, Aree, Luci, Energia, Altro, adattata a safe area e schermi 320 px.
