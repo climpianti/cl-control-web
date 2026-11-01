@@ -6,7 +6,8 @@ let detailId="", detailTrigger=null;
 let page="Home",areaId="",search="",data=[],areas=[],error="",busy=false;
 let dashboardLayout=null,dashboardDraft=null,layoutMessage="",layoutSaving=false;
 let layoutCatalog=null,layoutValidated=false;
-let studioInstruction="",studioExplanation="",studioBusy=false,studioSupported=false;
+let studioInstruction="",studioExplanation="",studioBusy=false,studioSupported=false,studioStatus=null;
+async function loadStudioStatus(){try{studioStatus=await api("studio/status")}catch{studioStatus=null}render()}
 const layoutTypes=[["systems","Sistemi"],["areas","Aree"],["cl_systems","Sistemi CL"],["energy","Energia"],["entity","Singola entità"]];
 function cloneLayout(v){return JSON.parse(JSON.stringify(v))}
 function getEditorDraft(){if(!dashboardDraft&&dashboardLayout)dashboardDraft=cloneLayout(dashboardLayout);return dashboardDraft}
@@ -79,8 +80,8 @@ function dynamicHome(layout){
 function renderStudio(){
  const examples=["Crea una dashboard per le aree con luci e fotovoltaico","Aggiungi energia e batteria SENEC","Mostra il clima, i sensori di temperatura e le luci della cucina"];
  return '<section class="studio-panel"><div class="studio-heading"><h2>CL Control AI Studio</h2>'+
- '<span class="studio-mode">Motore locale sperimentale · AI generativa non collegata</span></div>'+
- '<p>Descrivi come desideri la dashboard. Il pianificatore usa solo le entità presenti in Home Assistant e non controlla alcun dispositivo.</p>'+
+ '<span class="studio-mode">'+esc(studioStatus?.llm_ready?(studioStatus.provider==="ollama"?"Ollama locale attivo":"OpenAI cloud attivo"):"Motore locale sperimentale · AI generativa non collegata")+'</span></div>'+
+ '<p>Descrivi come desideri la dashboard. Il pianificatore usa solo le entità presenti in Home Assistant e non controlla alcun dispositivo.</p>'+ (studioStatus?.reason?'<p class="studio-provider-status">'+esc(studioStatus.reason)+'</p>':'')+
  '<form id="studio-form"><label for="studio-prompt">Richiesta in linguaggio naturale</label>'+
  '<textarea id="studio-prompt" maxlength="700" required minlength="3" rows="4" placeholder="Es. Crea una dashboard con luci, clima ed energia SENEC">'+esc(studioInstruction)+'</textarea>'+
  '<button type="submit" class="action" '+(studioBusy?'disabled':'')+'>Genera proposta</button></form>'+
@@ -95,9 +96,9 @@ async function generateStudioDraft(){
  studioBusy=true;studioExplanation="Analisi locale in corso…";render();
  try{
   const res=await api("studio/draft",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({instruction})});
-  if(res.provider!=="offline-rules"||!res.draft)throw Error("Risposta inattesa");
+  if(!["offline-rules","ollama","openai"].includes(res.provider)||!res.draft)throw Error("Risposta inattesa");
   studioSupported=Boolean(res.supported);
-  studioExplanation=res.explanation||"Proposta ricevuta";
+  studioExplanation=(res.fallback?"Fallback locale. ":"")+(res.explanation||"Proposta ricevuta");
   if(studioSupported){
    dashboardDraft=cloneLayout(res.draft);
    dashboardDraft.revision=dashboardLayout?.revision||0;
@@ -384,7 +385,7 @@ function startRealtime(){
  ws.addEventListener("error",()=>ws.close());
 }
 render();
-Promise.all([refresh(),loadAreas(),loadLayout(),loadCatalog()]).then(startRealtime);
+Promise.all([refresh(),loadAreas(),loadLayout(),loadCatalog(),loadStudioStatus()]).then(startRealtime);
 setInterval(()=>{if(!realtimeReady&&refreshAllowed())refresh()},9000);
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden){clearTimeout(realtimeRetry);realtimeSocket?.close();return}
