@@ -1,3 +1,11 @@
+# 0.1.0-beta.16
+
+- Corretto l'avvio dell'App: il file di configurazione Supervisor, normalmente root-owned, concede lettura al solo gruppo dedicato del servizio prima del passaggio all'utente non privilegiato.
+- Nessuna copia della chiave, nessuna stampa dei valori, nessuna modifica del contenuto di options.json. Directory privata 0700, file root:gruppo-servizio 0640; esclusi collegamenti simbolici e hard link.
+- Il processo HTTP continua a essere eseguito come clcontrol, non come root. Opzioni AI, consenso cloud, dashboard e permessi degli utenti restano invariati.
+- Aggiunti test di regressione sui permessi e un collaudo Docker senza rete che riproduce la configurazione root-only e verifica l'accesso dopo l'avvio.
+- Il collegamento OpenAI reale viene verificato separatamente dopo l'aggiornamento della demo; i test CI non usano chiavi reali e non generano costi API.
+
 # 0.1.0-beta.15
 
 - CL Control AI Studio con provider reali opt-in: Ollama locale su rete privata IPv4 e OpenAI Responses API cloud HTTPS.
