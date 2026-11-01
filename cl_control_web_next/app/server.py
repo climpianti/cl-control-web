@@ -8,6 +8,10 @@ import os
 from pathlib import Path
 from aiohttp import web, ClientSession, ClientTimeout, ClientError
 try:
+    from .access import identity_from_ingress, access_summary
+except ImportError:
+    from access import identity_from_ingress, access_summary
+try:
     from .realtime import filter_state, relay as realtime_relay
 except ImportError:
     from realtime import filter_state, relay as realtime_relay
@@ -62,7 +66,7 @@ async def ha_request(request: web.Request, method: str, endpoint: str, data=None
 async def bootstrap(request):
     states = await ha_request(request, "GET", "states")
     return web.json_response({
-        "version": "0.1.0-beta.9",
+        "version": "0.1.0-beta.10",
         "states": [safe for item in states if (safe := filter_state(item)) is not None],
     })
 
@@ -123,6 +127,8 @@ def validate_live_control(dom, action, params, state, services):
     flags = a.get("supported_features", 0)
     bits = {"open_cover": 1, "close_cover": 2, "set_cover_position": 4, "stop_cover": 8,
             "set_temperature": 1, "set_preset_mode": 16, "set_fan_mode": 8}
+    bits.update({"media_play": 16384, "media_pause": 1, "media_next_track": 32,
+                 "media_previous_track": 16, "volume_set": 4, "volume_mute": 8})
     if action in bits and not flags & bits[action]:
         raise ValueError("Funzione non supportata")
     if action == "set_temperature":
@@ -141,7 +147,7 @@ async def command(request):
     try:
         obj=await request.json()
         dom,action,eid,params=valid_control(obj)
-        if dom in {"cover", "climate"}:
+        if dom in {"cover", "climate", "light", "media_player"}:
             states = await ha_request(request, "GET", "states")
             state = next((s for s in states if s.get("entity_id") == eid), None)
             raw = await ha_request(request, "GET", "services")
@@ -218,8 +224,13 @@ async def media_command(request):
     await ha_request(request, "POST", "services/" + endpoint, payload)
     return web.json_response({"ok": True})
 
+async def access_diagnostics(request):
+    """Audit ingress identity only; no role or customer access is granted."""
+    context = identity_from_ingress(request.remote, request.headers)
+    return web.json_response(access_summary(context))
+
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.9"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.10"})
 
 async def start_session(app):
     app["session"]=ClientSession(timeout=ClientTimeout(total=8))
@@ -231,6 +242,7 @@ def create_app():
     app.cleanup_ctx.append(start_session)
     app.router.add_get("/",index)
     app.router.add_get("/api/health",health)
+    app.router.add_get("/api/access",access_diagnostics)
     app.router.add_get("/api/bootstrap",bootstrap)
     app.router.add_get("/api/realtime",realtime)
     app.router.add_get("/api/areas",areas)
