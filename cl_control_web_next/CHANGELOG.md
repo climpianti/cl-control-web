@@ -1,3 +1,11 @@
+# 0.1.0-beta.9
+
+- Nuova navigazione smartphone fissa in basso, cinque sezioni: Home, Aree, Luci, Energia, Altro, adattata a safe area e schermi 320 px.
+- Nuova pagina Altro per i sistemi non presenti nella barra inferiore.
+- Scenari e preferiti puntano alla dashboard CL Control Core gia installata, senza esportare dati privati ne creare un secondo archivio.
+- Ingress continua riservato agli amministratori; niente accesso clienti prematuro, token e permessi Core non vengono aggirati.
+- Test frontend sulla navigazione, sulla route Core e sulla conservazione dei dati utenti.
+
 # 0.1.0-beta.8
 
 - Energia: pannello realtime in sola lettura con sorgenti SENEC indipendenti prioritarie.
