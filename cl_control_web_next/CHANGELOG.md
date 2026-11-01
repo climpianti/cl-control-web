@@ -1,3 +1,14 @@
+# 0.1.0-beta.15
+
+- CL Control AI Studio con provider reali opt-in: Ollama locale su rete privata IPv4 e OpenAI Responses API cloud HTTPS.
+- La modalita predefinita resta offline. Ollama e OpenAI si attivano dalle opzioni dell'App; OpenAI richiede consenso cloud esplicito e chiave API protetta.
+- L'LLM riceve soltanto richiesta, catalogo selezionato di ID/nomi delle entita consentite e sintesi limitata del layout, mai stati, segreti, PIN o token.
+- Output esclusivamente JSON a schema ristretto, validato contro le entita reali e i widget autorizzati; nessuna chiamata a servizi Home Assistant, nessun salvataggio senza approvazione.
+- Protezioni contro SSRF: URL Ollama ristretto a IPv4 privato con porta 11434, nessun redirect; OpenAI URL HTTPS fisso.
+- Timeout, limiti di payload e fallback offline esplicito in caso di errore o provider non configurato.
+- Endpoint read-only /api/studio/status per conoscere provider attivo senza rivelare credenziali; test privati e regressione ampliati.
+- Versione sperimentale: non abilita accessi cliente e non modifica SENEC, KNX o Power Control.
+
 # 0.1.0-beta.14
 
 - CL Control AI Studio: prima interfaccia per richieste in linguaggio naturale, con esempi e proposte di dashboard.
