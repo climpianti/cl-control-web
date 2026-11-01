@@ -135,3 +135,20 @@ svg{width:1em;height:1em;flex-shrink:0;vertical-align:middle}
 .layout-preview-shield :is(button,input,select,a){pointer-events:none}
 @media(max-width:1150px){.layout-editor-grid{grid-template-columns:minmax(0,1fr)}.layout-edit-rows{max-height:none}}
 @media(max-width:560px){.layout-editor-controls,.layout-editor-preview{padding:13px}.layout-edit-buttons{gap:4px}.layout-edit-buttons button{font-size:12px}.layout-editor-actions .action{width:100%}}
+
+/* Beta 14: offline CL Control AI Studio */
+.studio-panel{max-width:900px;padding:clamp(18px,4vw,34px);border:1px solid #327ea8;border-radius:22px;background:radial-gradient(circle at 95% 0%,#1b80bd40,transparent 60%),linear-gradient(145deg,#0d2a45,#091b32)}
+.studio-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.studio-heading h2{margin:0;font-size:clamp(22px,3vw,29px)}
+.studio-mode{border:1px solid #8fa1b4;border-radius:999px;color:#d4e4ed;padding:7px 10px;font-size:12px}
+.studio-panel>p{color:#b9d7e9;line-height:1.7}
+.studio-panel form{display:grid;gap:11px;margin:20px 0}
+.studio-panel form label{font-size:14px;color:#ceeaff}
+.studio-panel textarea{display:block;width:100%;min-height:118px;padding:14px;border:1px solid #3d8eb2;border-radius:15px;background:#102e49;color:#fff;font:inherit;resize:vertical}
+.studio-panel textarea:focus-visible{outline:2px solid #2bc7fb;outline-offset:2px}
+.studio-panel form>.action{min-height:45px;justify-self:start}
+.studio-examples{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.studio-examples button{color:#c9e9fa;background:#153c58;border:1px solid #327da5;border-radius:12px;padding:10px 12px;min-height:44px;text-align:left}
+.studio-response,.studio-next{margin-top:18px;border-left:3px solid #22bdea;background:#14527b35;padding:15px;border-radius:8px;color:#d3efff}
+.studio-next p{line-height:1.6}
+@media(max-width:560px){.studio-panel form>.action{width:100%}.studio-mode{font-size:11px}}
