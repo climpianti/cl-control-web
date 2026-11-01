@@ -7,6 +7,11 @@ import math
 import os
 from pathlib import Path
 from aiohttp import web, ClientSession, ClientTimeout, ClientError
+from copy import deepcopy
+try:
+    from .layout import LayoutStore, validate_layout, suggest_layout
+except ImportError:
+    from layout import LayoutStore, validate_layout, suggest_layout
 try:
     from .access import identity_from_ingress, access_summary
 except ImportError:
@@ -66,7 +71,7 @@ async def ha_request(request: web.Request, method: str, endpoint: str, data=None
 async def bootstrap(request):
     states = await ha_request(request, "GET", "states")
     return web.json_response({
-        "version": "0.1.0-beta.10",
+        "version": "0.1.0-beta.11",
         "states": [safe for item in states if (safe := filter_state(item)) is not None],
     })
 
@@ -229,19 +234,78 @@ async def access_diagnostics(request):
     context = identity_from_ingress(request.remote, request.headers)
     return web.json_response(access_summary(context))
 
+async def get_layout(request):
+    store = request.app["layout_store"]
+    return web.json_response({"layout": store.snapshot(), "editable": False,
+        "storage_available": os.access(store.path.parent, os.W_OK)})
+
+
+async def preview_layout(request):
+    """Preview is read-only; AI proposals are never executed or persisted."""
+    context = identity_from_ingress(request.remote, request.headers)
+    if not context.ingress_verified:
+        raise web.HTTPForbidden(text="Ingress authentication required")
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid payload")
+        states = await ha_request(request, "GET", "states")
+        known = {s["entity_id"] for s in states if isinstance(s, dict) and "entity_id" in s}
+        if payload.get("suggest") is True and set(payload) == {"suggest"}:
+            layout = suggest_layout(known, [])
+        elif set(payload) == {"layout"}:
+            layout = validate_layout(payload["layout"], known)
+        else:
+            raise ValueError("Invalid proposal")
+    except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from exc
+    return web.json_response({"layout": layout, "preview": True, "persisted": False})
+
+
+async def save_layout(request):
+    """Explicit same-origin admin-panel save; no implicit AI application."""
+    context = identity_from_ingress(request.remote, request.headers)
+    if not context.ingress_verified:
+        raise web.HTTPForbidden(text="Ingress authentication required")
+    if request.headers.get("X-CL-Layout-Confirm") != "yes":
+        raise web.HTTPForbidden(text="Explicit confirmation required")
+    if request.headers.get("Sec-Fetch-Site") not in ("same-origin", "none"):
+        raise web.HTTPForbidden(text="Cross-origin request rejected")
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict) or set(payload) != {"layout", "expected_revision"}:
+            raise ValueError("Invalid payload")
+        states = await ha_request(request, "GET", "states")
+        known = {s["entity_id"] for s in states if isinstance(s, dict) and "entity_id" in s}
+        updated = await request.app["layout_store"].save(
+            payload["layout"], payload["expected_revision"], known
+        )
+    except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from exc
+    except OSError as exc:
+        LOG.error("Layout could not be persisted (%s)", type(exc).__name__)
+        raise web.HTTPServiceUnavailable(text="Dashboard storage unavailable") from exc
+    return web.json_response({"layout": updated, "saved": True})
+
+
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.10"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.11"})
 
 async def start_session(app):
+    await app["layout_store"].load()
     app["session"]=ClientSession(timeout=ClientTimeout(total=8))
     yield
     await app["session"].close()
 
 def create_app():
-    app=web.Application(middlewares=[security_headers],client_max_size=MAX_BODY)
+    app=web.Application(middlewares=[security_headers],client_max_size=12 * 1024)
     app.cleanup_ctx.append(start_session)
+    app["layout_store"] = LayoutStore()
     app.router.add_get("/",index)
     app.router.add_get("/api/health",health)
+    app.router.add_get("/api/layout",get_layout)
+    app.router.add_post("/api/layout/preview",preview_layout)
+    app.router.add_post("/api/layout/save",save_layout)
     app.router.add_get("/api/access",access_diagnostics)
     app.router.add_get("/api/bootstrap",bootstrap)
     app.router.add_get("/api/realtime",realtime)

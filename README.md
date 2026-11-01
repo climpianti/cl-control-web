@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.10**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.11**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
@@ -89,3 +89,8 @@ sulle funzionalita e sulla presenza del servizio prima di essere inviati.
 Prima di abilitare gli utenti non amministratori occorrono controllo dei
 permessi HA lato server, filtraggio di bootstrap/aree/realtime/media per
 utente, verifiche per entita sulle scritture e prove su account separati.
+
+
+## Dashboard dinamica per impianto (beta 11)
+
+Questa e la prima base per CL Control AI Studio. Il modello JSON versionato elenca widget autorizzati (`systems`, `areas`, `cl_systems`, `energy`, `entity`), i loro titoli e le entita consentite. Non puo contenere HTML, JavaScript, istruzioni AI o comandi arbitrary. La pagina **Personalizza** propone un layout dai sensori rilevati, mostra un'anteprima, e lo salva solo dopo il click di approvazione. L'archivio vive nel volume persistente dell'App (`/data/dashboard-layout.json`) con scrittura atomica e revisione per prevenire modifiche concorrenti. In assenza di un layout salvato, viene mantenuta la Home tradizionale. Gli utenti cliente restano esclusi con `panel_admin: true`. Questa release NON integra ancora un provider LLM e NON sincronizza il layout col Core: i prossimi moduli lavoreranno sullo stesso modello JSON sicuro.

@@ -97,3 +97,14 @@ svg{width:1em;height:1em;flex-shrink:0;vertical-align:middle}
  main{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
 }
 @media(max-width:359px){.bottom-nav button{font-size:10px}.bottom-nav button svg{width:21px;height:21px}}
+
+/* Beta 11: declarative layout engine, reusable widgets */
+.dynamic-widgets{grid-template-columns:repeat(3,minmax(0,1fr))}
+.layout-widget{min-width:0}
+.layout-widget .devices{grid-template-columns:minmax(0,1fr)}
+.layout-editor>p{line-height:1.6;color:#bdd9ea;max-width:750px}
+.layout-editor .actions{margin:20px 0 12px}
+.layout-editor .action{min-height:45px}
+.layout-message{font-size:13px;color:#87d8fb}
+@media(max-width:1200px){.dynamic-widgets{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:850px){.dynamic-widgets{grid-template-columns:minmax(0,1fr)}}

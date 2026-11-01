@@ -127,3 +127,24 @@ test('saved scenes stay owned by Core and open its canonical native route',()=>{
  const other=run('morePage()');
  assert(other.includes('data-page="Scenari"'));
 });
+
+
+test('dashboard widgets render only explicit supported kinds',()=>{
+ const layout={schema_version:1,revision:1,title:'Villa',widgets:[
+ {id:'systems',type:'systems',title:'Sistemi'},
+ {id:'areas',type:'areas',title:'Zone'}]};
+ const html=run('dynamicHome('+JSON.stringify(layout)+')');
+ assert.match(html,/Villa/);
+ assert.match(html,/Sistemi/);
+ assert.match(html,/Zone/);
+ assert(!html.includes('undefined'));
+});
+test('declarative dashboard editor has non-persistent preview and approval',()=>{
+ const html=run('(()=>{dashboardLayout={schema_version:1,revision:0,title:"La tua casa",widgets:[{id:"systems",type:"systems",title:"Sistemi"}]};return renderLayoutEditor()})()');
+ assert(html.includes('data-layout-preview'));
+ assert(!html.includes('data-layout-save'));
+ const draft=run('(()=>{dashboardDraft={schema_version:1,revision:0,title:"La tua casa",widgets:[{id:"systems",type:"systems",title:"Sistemi"}]};return renderLayoutEditor()})()');
+ assert(draft.includes('data-layout-save'));
+ assert(draft.includes('Anteprima non salvata'));
+ assert(source.includes('X-CL-Layout-Confirm'));
+});

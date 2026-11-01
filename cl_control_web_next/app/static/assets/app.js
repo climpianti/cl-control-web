@@ -1,9 +1,67 @@
 const el=document.getElementById("app"), esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SYMBOLS=Object.fromEntries(Object.entries({"home":"M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10","light":"M9 18h6m-6 3h6M8 14a6 6 0 1 1 8 0c-1 1-1 2-1 2H9s0-1-1-2","cover":"M3 21V3h18v18M6 7h12M6 11h12M6 15h12M12 15v5","climate":"M9 14V5a3 3 0 0 1 6 0v9a5 5 0 1 1-6 0M12 8v10","security":"m12 3 9 4v5c0 5-9 10-9 10S3 17 3 12V7l9-4Zm-4 9 3 3 5-6","camera":"M3 7h12v11H3zM15 11l6-4v11l-6-4","media":"M3 4h18v16H3zM10 8l6 4-6 4z","scene":"M12 3a9 9 0 1 0 0 18c4 0 0-5 4-5h2c5 0 4-13-6-13ZM7 9h.01M12 6h.01M17 9h.01M7 14h.01","energy":"m13 2-9 12h7l-1 8 10-13h-7z","irrigation":"M12 13v9M8 22h8M3 5l2 2M8 3l1 3M16 3l-1 3M21 5l-2 2M3 12h3M18 12h3M8 10l4-3 4 3","area":"m12 3 10 6-10 6L2 9Zm-10 11 10 6 10-6M2 18l10 6 10-6","support":"M3 14v-3a9 9 0 0 1 18 0v3M3 12h4v8H3zM17 12h4v8h-4zM17 20c0 2-3 2-5 2","back":"m15 4-8 8 8 8"}).map(([key,path])=>[key,'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+path+'"/></svg>']));
-const nav=[["Home","home"],["Aree","area"],["Luci","light"],["Aperture","cover"],["Clima","climate"],["Multimedia","media"],["Energia","energy"],["Sicurezza","security"],["Scenari","scene"],["Assistenza","support"]];
+const nav=[["Home","home"],["Aree","area"],["Luci","light"],["Aperture","cover"],["Clima","climate"],["Multimedia","media"],["Energia","energy"],["Sicurezza","security"],["Scenari","scene"],["Personalizza","scene"],["Assistenza","support"]];
 let remoteId="", remoteTrigger=null, mediaProfiles=[], mediaError="";
 let detailId="", detailTrigger=null;
 let page="Home",areaId="",search="",data=[],areas=[],error="",busy=false;
+let dashboardLayout=null,dashboardDraft=null,layoutMessage="",layoutSaving=false;
+async function loadLayout(){
+ try{const r=await api("layout");dashboardLayout=r.layout;render()}
+ catch(e){layoutMessage="Configurazione dashboard non raggiungibile";render()}
+}
+const iconForWidget={systems:"area",areas:"area",cl_systems:"energy",energy:"energy",entity:"light"};
+function widgetHtml(widget){
+ const title=esc(widget.title);
+ if(widget.type==="entity"){
+  const item=byId(widget.entity_id);
+  return '<section class="section-block layout-widget"><h2>'+title+'</h2>'+
+   (item?'<div class="devices">'+card(item)+'</div>':'<p class="empty">Entità non disponibile</p>')+'</section>';
+ }
+ if(widget.type==="energy")return '<section class="section-block layout-widget"><h2>'+title+'</h2><div class="cl-grid">'+
+  tile("Consumo",fmtPower(energy().house),"energy","Energia")+
+  tile("Fotovoltaico",fmtPower(energy().solar),"energy","Energia")+'</div></section>';
+ if(widget.type==="areas")return '<section class="section-block layout-widget"><h2>'+title+'</h2><div class="area-grid">'+cardsForArea()+'</div></section>';
+ if(widget.type==="systems"){
+  const descriptors=[["Luci",status("light"),"light","Luci"],["Aperture",status("cover"),"cover","Aperture"],["Clima",status("climate"),"climate","Clima"],["Multimedia",status("media_player"),"media","Multimedia"]];
+  return '<section class="section-block layout-widget"><h2>'+title+'</h2><div class="system-grid">'+descriptors.map(x=>tile(...x)).join("")+'</div></section>';
+ }
+ if(widget.type==="cl_systems")return '<section class="section-block layout-widget"><h2>'+title+'</h2><div class="cl-grid">'+
+ tile("Energia",fmtPower(energy().house),"energy","Energia")+
+ tile("Irrigazione",named("sensor.cl_irrigation_stato_sistema")||"Non disponibile","irrigation","Irrigazione")+'</div></section>';
+ return "";
+}
+function dynamicHome(layout){
+ return '<section class="welcome"><h2>'+esc(layout.title)+'</h2><p>CL Control · Layout personalizzato</p></section>'+
+ '<div class="tri dynamic-widgets">'+layout.widgets.map(widgetHtml).join("")+'</div>';
+}
+function renderLayoutEditor(){
+ const selected=dashboardDraft||dashboardLayout;
+ if(!selected)return '<p>Layout non disponibile.</p>';
+ const preview=!!dashboardDraft;
+ return '<section class="layout-editor"><h2>Dashboard per questo impianto</h2>'+
+ '<p>Genera un’anteprima a partire dalle entità rilevate; poi approva il layout. Nessun comando viene inviato ai dispositivi.</p>'+
+ '<div class="actions"><button class="action" data-layout-preview>Proponi layout</button>'+
+ (preview?'<button class="action" data-layout-save '+(layoutSaving?"disabled":"")+'>Approva e salva</button><button class="action" data-layout-cancel>Annulla</button>':"")+'</div>'+
+ (layoutMessage?'<p class="layout-message">'+esc(layoutMessage)+'</p>':"")+
+ '<p class="layout-message">Revisione: '+Number(dashboardLayout?.revision||0)+(preview?' · Anteprima non salvata':' · Configurazione attiva')+'</p>'+
+ '<div class="tri dynamic-widgets">'+selected.widgets.map(widgetHtml).join("")+'</div></section>';
+}
+async function previewDashboard(){
+ try{const res=await api("layout/preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({suggest:true})});
+ dashboardDraft=res.layout;dashboardDraft.revision=dashboardLayout?.revision||0;layoutMessage="Anteprima pronta. Verifica prima di approvare.";
+ }catch(e){layoutMessage="Anteprima non disponibile: "+e.message;}
+ render();
+}
+async function saveDashboard(){
+ if(!dashboardDraft||layoutSaving)return;
+ if(!window.confirm("Salvare questo layout come dashboard attiva per l’impianto?"))return;
+ layoutSaving=true;render();
+ try{const res=await api("layout/save",{method:"POST",headers:{"Content-Type":"application/json","X-CL-Layout-Confirm":"yes"},body:JSON.stringify({layout:dashboardDraft,expected_revision:dashboardLayout?.revision||0})});
+ dashboardLayout=res.layout;dashboardDraft=null;layoutMessage="Dashboard salvata. Riapri Home per visualizzarla.";
+ }catch(e){layoutMessage="Salvataggio non riuscito: "+e.message;}
+ finally{layoutSaving=false;render();}
+}
+
 const mobileNav=[["Home","home"],["Aree","area"],["Luci","light"],["Energia","energy"],["Altro","area"]];
 const CORE_SCENES_PATH="/cl-control/light-scenes";
 function nativeScenesPage(){
@@ -133,7 +191,7 @@ function closeDetail(){detailId='';document.querySelector('#light-dialog')?.remo
 function openDetail(id){detailId=id;const s=byId(id);if(!s)return;detailTrigger=document.activeElement;document.querySelector('#light-dialog')?.remove();const dialog=document.createElement('dialog');dialog.id='light-dialog';dialog.className='light-dialog';dialog.setAttribute('aria-label','Dettagli '+name(s));dialog.innerHTML='<div class="dialog-top"><span>ILLUMINAZIONE / DETTAGLI</span><button class="dialog-close" aria-label="Chiudi dettagli">×</button></div>'+card(s,true)+'<p class="dialog-note">'+(valid(s)?'Controlli disponibili per questa luce':'Dispositivo non disponibile')+'</p><div class="dialog-feedback" role="status"></div>';el.append(dialog);dialog.querySelector('.dialog-close').onclick=closeDetail;dialog.addEventListener('cancel',e=>{e.preventDefault();closeDetail()});dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeDetail()}});dialog.dataset.lightCard=id;paintLights(dialog);bindControls(dialog);dialog.showModal()}
 function button(id,act,title,ok=true){return '<button class="action" data-entity="'+esc(id)+'" data-action="'+act+'" '+(!ok?'disabled':'')+'>'+esc(title)+'</button>';}
 function slider(s,type,label,min,max,value){return '<label class="range-label">'+esc(label)+'<input type="range" data-slider="'+type+'" data-entity="'+esc(s.entity_id)+'" min="'+min+'" max="'+max+'" value="'+Number(value||0)+'" '+(!valid(s)?'disabled':'')+'></label>'}
-function other(){let key={"Luci":"light","Multimedia":"media_player","Aperture":"cover","Clima":"climate","Sicurezza":"alarm_control_panel","Scenari":"scene"}[page];if(page==="Scenari")return nativeScenesPage();if(page==="Altro")return morePage();if(page==="Aree")return '<h2>Le tue aree</h2><div class="area-grid wide">'+cardsForArea()+'</div>';if(page==="Area"){let a=areas.find(a=>a.id===areaId);if(!a)return '<p>Area non disponibile</p>';let devices=data.filter(s=>a.entities.includes(s.entity_id)&&["light","media_player","cover","climate"].some(d=>s.entity_id.startsWith(d+".")));return '<button class="action" data-page="Aree">‹ Tutte le aree</button><h2>'+esc(a.name)+'</h2><div class="devices">'+devices.map(s=>card(s)).join("")+'</div>'}if(page==="Irrigazione"){let s=by("sensor").filter(x=>x.entity_id.startsWith("sensor.cl_irrigation_")&&valid(x));return '<h2>CL Irrigation</h2><div class="devices">'+s.slice(0,12).map(x=>'<div class="device-card"><strong>'+esc(name(x))+'</strong><p>'+esc(x.state)+' '+esc(x.attributes?.unit_of_measurement||"")+'</p></div>').join("")+'</div>'}if(page==="Energia")return energyDashboard();if(page==="Assistenza")return '<div class="device-card"><h2>Assistenza CL Impianti</h2><p>Per richieste tecniche e assistenza contatta CL Impianti.</p><a href="https://www.climpianti.net/contatti.html" target="_blank" rel="noopener">Contatti e assistenza</a></div>';let ds=key?by(key):[];if(page==="Sicurezza"&&!ds.length)return '<h2>Sicurezza</h2><div class="empty">Nessuna centrale antifurto esposta come entità Home Assistant. Controlla le integrazioni Risco/INIM.</div>';return '<div class="content-heading"><span class="list-caption">Dispositivi</span><input id="search" placeholder="Cerca dispositivo" value="'+esc(search)+'" aria-label="Cerca dispositivi"></div><div class="devices">'+ds.filter(x=>name(x).toLowerCase().includes(search.toLowerCase())).map(s=>card(s)).join("")+'</div>'}
+function other(){let key={"Luci":"light","Multimedia":"media_player","Aperture":"cover","Clima":"climate","Sicurezza":"alarm_control_panel","Scenari":"scene"}[page];if(page==="Scenari")return nativeScenesPage();if(page==="Personalizza")return renderLayoutEditor();if(page==="Altro")return morePage();if(page==="Aree")return '<h2>Le tue aree</h2><div class="area-grid wide">'+cardsForArea()+'</div>';if(page==="Area"){let a=areas.find(a=>a.id===areaId);if(!a)return '<p>Area non disponibile</p>';let devices=data.filter(s=>a.entities.includes(s.entity_id)&&["light","media_player","cover","climate"].some(d=>s.entity_id.startsWith(d+".")));return '<button class="action" data-page="Aree">‹ Tutte le aree</button><h2>'+esc(a.name)+'</h2><div class="devices">'+devices.map(s=>card(s)).join("")+'</div>'}if(page==="Irrigazione"){let s=by("sensor").filter(x=>x.entity_id.startsWith("sensor.cl_irrigation_")&&valid(x));return '<h2>CL Irrigation</h2><div class="devices">'+s.slice(0,12).map(x=>'<div class="device-card"><strong>'+esc(name(x))+'</strong><p>'+esc(x.state)+' '+esc(x.attributes?.unit_of_measurement||"")+'</p></div>').join("")+'</div>'}if(page==="Energia")return energyDashboard();if(page==="Assistenza")return '<div class="device-card"><h2>Assistenza CL Impianti</h2><p>Per richieste tecniche e assistenza contatta CL Impianti.</p><a href="https://www.climpianti.net/contatti.html" target="_blank" rel="noopener">Contatti e assistenza</a></div>';let ds=key?by(key):[];if(page==="Sicurezza"&&!ds.length)return '<h2>Sicurezza</h2><div class="empty">Nessuna centrale antifurto esposta come entità Home Assistant. Controlla le integrazioni Risco/INIM.</div>';return '<div class="content-heading"><span class="list-caption">Dispositivi</span><input id="search" placeholder="Cerca dispositivo" value="'+esc(search)+'" aria-label="Cerca dispositivi"></div><div class="devices">'+ds.filter(x=>name(x).toLowerCase().includes(search.toLowerCase())).map(s=>card(s)).join("")+'</div>'}
 async function api(path,options={}){const r=await fetch("api/"+path,{credentials:"same-origin",cache:"no-store",...options});if(!r.ok)throw Error("HTTP "+r.status);return r.json()}
 async function command(id,action,params={}){if(busy)return;const focusedSlider=document.activeElement?.dataset?.slider;busy=true;document.querySelectorAll("[data-action], [data-slider], [data-comfort-select], [data-comfort-form] input, [data-comfort-form] button").forEach(x=>x.disabled=true);try{await api("command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entity_id:id,action,data:params})});await refresh()}catch(e){error="Comando non riuscito: "+e.message;render()}finally{busy=false;if(detailId){const id=detailId,trigger=detailTrigger;openDetail(id);detailTrigger=trigger;if(focusedSlider)document.querySelectorAll("#light-dialog [data-slider]").forEach(x=>{if(x.dataset.slider===focusedSlider)x.focus()});document.querySelector(".dialog-feedback").textContent=error||"Comando inviato"}else render()}}
 
@@ -160,7 +218,10 @@ function previewLight(input){const s=byId(input.dataset.entity);if(!s?.entity_id
 
 function colorParams(s,hue){const a=s?.attributes||{},m=a.supported_color_modes||[];const key=m.includes('rgbw')?'rgbw_color':m.includes('rgbww')?'rgbww_color':null;if(!key)return {hs_color:[hue,a.hs_color?.[1]??100]};const old=a[key]||(key==='rgbw_color'?[0,0,0,0]:[0,0,0,0,0]),sat=(a.hs_color?.[1]??100)/100,v=Math.max(...old.slice(0,3))/255||1,f=n=>{const k=(n+hue/60)%6;return Math.round(255*v*(1-sat*Math.max(0,Math.min(k,4-k,1))))};return {[key]:[f(5),f(3),f(1),...old.slice(3,key==='rgbw_color'?4:5)]}}
 function bindControls(root){root.querySelectorAll('[data-comfort-form]').forEach(form=>form.onsubmit=e=>{e.preventDefault();if(form.reportValidity())command(form.dataset.entity,form.dataset.comfortForm,{[form.dataset.key]:Number(form.querySelector('input').value)})});root.querySelectorAll('[data-comfort-select]').forEach(b=>b.onchange=()=>command(b.dataset.entity,b.dataset.comfortSelect,{[b.dataset.key]:b.value}));root.querySelectorAll("[data-slider]").forEach(b=>b.oninput=()=>previewLight(b));root.querySelectorAll("[data-action]").forEach(b=>b.onclick=()=>command(b.dataset.entity,b.dataset.action));root.querySelectorAll("[data-slider]").forEach(b=>b.onchange=()=>{let id=b.dataset.entity,key=b.dataset.slider,value=Number(b.value),dataObj={};if(key==="brightness_pct")dataObj={brightness_pct:value};if(key==="hs_color")dataObj=colorParams(byId(id),value);if(key==="color_temp_kelvin")dataObj={color_temp_kelvin:value};if(key==="volume_level")dataObj={volume_level:value/100};if(key==="rgbw_color"){let old=byId(id)?.attributes?.rgbw_color||[0,0,0,0];dataObj={rgbw_color:[...old.slice(0,3),value]}}command(id,key==="volume_level"?"volume_set":"turn_on",dataObj)});}
-function render(){if(remoteId&&document.querySelector("#media-dialog"))return;if(detailId&&document.querySelector("#light-dialog"))return;el.innerHTML='<div class="layout"><aside class="side"><div class="brand"><strong>CL CONTROL <b>NEXT</b></strong><img src="assets/cl-logo.png" alt="CL Impianti"></div><nav>'+nav.map(([n,i])=>'<button data-page="'+n+'" class="'+(n===page?"selected":"")+'"><span>'+SYMBOLS[i]+'</span>'+n+'</button>').join("")+'</nav><footer>Blue Tech Premium · beta</footer></aside><main><div class="heading"><div><span class="eyebrow">CL IMPIANTI / SMART BUILDING</span><h1>'+esc(page==="Area"?areas.find(a=>a.id===areaId)?.name:page)+'</h1></div><span class="connection">Home Assistant · Ingress</span></div>'+(error?'<div class="warning">'+esc(error)+'</div>':'')+(page==="Home"?home():other())+'</main></div>'+bottomNavigation();document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{page=b.dataset.page;search="";render()});document.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{areaId=b.dataset.area;page="Area";render()});paintLights(document);bindControls(document);document.querySelectorAll("[data-remote]").forEach(b=>b.onclick=()=>openRemote(b.dataset.remote));document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>openDetail(b.dataset.detail));document.querySelector("#search")?.addEventListener("input",e=>{search=e.target.value;let pos=e.target.selectionStart;render();const b=document.querySelector("#search");b.focus();b.setSelectionRange(pos,pos)})}
+function render(){if(remoteId&&document.querySelector("#media-dialog"))return;if(detailId&&document.querySelector("#light-dialog"))return;el.innerHTML='<div class="layout"><aside class="side"><div class="brand"><strong>CL CONTROL <b>NEXT</b></strong><img src="assets/cl-logo.png" alt="CL Impianti"></div><nav>'+nav.map(([n,i])=>'<button data-page="'+n+'" class="'+(n===page?"selected":"")+'"><span>'+SYMBOLS[i]+'</span>'+n+'</button>').join("")+'</nav><footer>Blue Tech Premium · beta</footer></aside><main><div class="heading"><div><span class="eyebrow">CL IMPIANTI / SMART BUILDING</span><h1>'+esc(page==="Area"?areas.find(a=>a.id===areaId)?.name:page)+'</h1></div><span class="connection">Home Assistant · Ingress</span></div>'+(error?'<div class="warning">'+esc(error)+'</div>':'')+(page==="Home"&&dashboardLayout?.revision>0?dynamicHome(dashboardLayout):page==="Home"?home():other())+'</main></div>'+bottomNavigation();document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{page=b.dataset.page;search="";render()});document.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{areaId=b.dataset.area;page="Area";render()});document.querySelector("[data-layout-preview]")?.addEventListener("click",previewDashboard);
+document.querySelector("[data-layout-save]")?.addEventListener("click",saveDashboard);
+document.querySelector("[data-layout-cancel]")?.addEventListener("click",()=>{dashboardDraft=null;layoutMessage="Anteprima annullata";render()});
+paintLights(document);bindControls(document);document.querySelectorAll("[data-remote]").forEach(b=>b.onclick=()=>openRemote(b.dataset.remote));document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>openDetail(b.dataset.detail));document.querySelector("#search")?.addEventListener("input",e=>{search=e.target.value;let pos=e.target.selectionStart;render();const b=document.querySelector("#search");b.focus();b.setSelectionRange(pos,pos)})}
 async function refresh(){try{const res=await api("bootstrap");data=res.states||[];error="";render()}catch(e){error="Connessione Home Assistant: "+e.message;render()}}
 async function loadAreas(){try{const res=await api("areas");areas=res.areas||[];render()}catch(e){areas=[];render()}}
 
@@ -219,7 +280,7 @@ function startRealtime(){
  ws.addEventListener("error",()=>ws.close());
 }
 render();
-Promise.all([refresh(),loadAreas()]).then(startRealtime);
+Promise.all([refresh(),loadAreas(),loadLayout()]).then(startRealtime);
 setInterval(()=>{if(!realtimeReady&&refreshAllowed())refresh()},9000);
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden){clearTimeout(realtimeRetry);realtimeSocket?.close();return}

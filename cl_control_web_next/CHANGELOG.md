@@ -1,3 +1,11 @@
+# 0.1.0-beta.11
+
+- Primo motore di dashboard dinamiche: schema versionato, widget con tipi e campi autorizzati, rendering guidato dai dati dell'impianto.
+- Nuovo editor Personalizza (solo pannello amministrativo) con proposta automatica deterministica, anteprima senza scrittura, approvazione esplicita e salvataggio persistente.
+- Validazione di entita reali, anti-iniezione, protezione da aggiornamenti concorrenti, scrittura atomica su /data e 600 per il file.
+- Nessun motore AI remoto attivato, nessuna esecuzione di codice generato, nessuna scrittura di comandi dispositivi.
+- Accesso cliente rimane disabilitato; ancora da implementare i permessi per entita e l'integrazione Core dell'archivio layout.
+
 # 0.1.0-beta.10
 
 - Sicurezza: verifica esplicita dello stato live e delle capacita supportate prima dei comandi luci e multimedia.
