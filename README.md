@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.9**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.10**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
@@ -73,3 +73,19 @@ La pagina Energia legge i dati già disponibili da Home Assistant. Preferisce SE
 ## Smartphone, scenari e preferiti (beta 9)
 
 Da smartphone il menu in alto e sostituito dalla barra inferiore Home / Aree / Luci / Energia / Altro. Da Altro sono raggiungibili tutte le altre viste della Web App. La pagina Scenari offre un collegamento alla vista nativa `/cl-control/light-scenes` della dashboard Core, aperta nel contenitore Home Assistant con i permessi del vero utente connesso: non si accede all'archivio personale via token Supervisor. I preferiti delle singole luci restano nella dashboard Core. Per il momento la Web App rimane accessibile esclusivamente dagli amministratori e non concede accesso ai clienti non amministratori. Sono necessari test browser su telefono e collaudi reali prima della distribuzione.
+
+
+## Autorizzazioni: fase di sicurezza beta 10
+
+L'app conserva `panel_admin: true`. La gestione cliente e **volutamente non abilitata**:
+il token Supervisor dell'app non fornisce i permessi del visitatore HA.
+Ingress inoltra `X-Remote-User-Id` ma non si puo dedurre il gruppo
+amministratore da un header arbitrario. Il modello `access.py` riconosce
+l'identita soltanto quando la connessione proviene da `172.30.32.2`
+(proxy Ingress). `/api/access` restituisce soltanto informazioni non sensibili
+per la diagnosi, senza ID o token. **Non e ancora un'autorizzazione per utente.**
+I comandi luce e multimedia vengono verificati nuovamente sullo stato live,
+sulle funzionalita e sulla presenza del servizio prima di essere inviati.
+Prima di abilitare gli utenti non amministratori occorrono controllo dei
+permessi HA lato server, filtraggio di bootstrap/aree/realtime/media per
+utente, verifiche per entita sulle scritture e prove su account separati.
