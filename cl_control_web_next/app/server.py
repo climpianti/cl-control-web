@@ -5,12 +5,20 @@ import json
 import logging
 import os
 from pathlib import Path
-from aiohttp import web, ClientSession, ClientTimeout
+from aiohttp import web, ClientSession, ClientTimeout, ClientError
+try:
+    from .media import profile as media_profile, plan as media_plan
+except ImportError:  # Direct execution in the Home Assistant App container.
+    from media import profile as media_profile, plan as media_plan
 
 LOG = logging.getLogger("cl_control_web")
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 CORE = os.environ.get("HA_CORE_URL", "http://supervisor/core/api").rstrip("/")
+def core_websocket_url(core):
+    # Supervisor uses /core/websocket, whereas direct Core uses /api/websocket.
+    endpoint = core[:-4] + "/websocket" if core.rstrip("/").endswith("/core/api") else core.rstrip("/") + "/websocket"
+    return endpoint.replace("https://", "wss://", 1).replace("http://", "ws://", 1)
 TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
 DOMAINS = {
     "light": {"turn_on", "turn_off"},
@@ -58,10 +66,10 @@ async def bootstrap(request):
             if k in {"friendly_name","brightness","hs_color","rgb_color","rgbw_color","rgbww_color",
                      "supported_color_modes","color_mode","color_temp_kelvin","min_color_temp_kelvin",
                      "max_color_temp_kelvin","supported_features","volume_level","is_volume_muted",
-                     "media_title","media_artist","source","unit_of_measurement","device_class","temperature","humidity","condition","forecast","entity_picture","supported_features"}
+                     "media_title","media_artist","source","source_list","unit_of_measurement","device_class","temperature","humidity","condition","forecast","entity_picture","supported_features"}
         }
         limited.append({"entity_id":eid,"state":item.get("state"),"attributes":allowed})
-    return web.json_response({"version":"0.1.0-beta.3","states":limited})
+    return web.json_response({"version":"0.1.0-beta.5","states":limited})
 
 def valid_control(obj):
     if not isinstance(obj,dict) or set(obj)-{"entity_id","action","data"}:
@@ -127,8 +135,55 @@ async def areas(request):
 async def index(_):
     return web.FileResponse(STATIC/"index.html")
 
+async def media_metadata(request):
+    """Read only the registry and registered services; no entity-name heuristics."""
+    raw = await ha_request(request, "GET", "services")
+    services = {s["domain"]: s.get("services", {}) for s in raw}
+    registry = []
+    try:
+        async with asyncio.timeout(8):
+            async with request.app["session"].ws_connect(core_websocket_url(CORE), headers={"Authorization": f"Bearer {TOKEN}"}) as ws:
+                if (await ws.receive_json()).get("type") != "auth_required":
+                    raise ValueError("Unexpected WebSocket greeting")
+                await ws.send_json({"type": "auth", "access_token": TOKEN})
+                if (await ws.receive_json()).get("type") != "auth_ok":
+                    raise ValueError("Registry authentication unavailable")
+                await ws.send_json({"id": 1, "type": "config/entity_registry/list"})
+                result = await ws.receive_json()
+                if result.get("success"):
+                    registry = result.get("result", [])
+    except (TimeoutError, ValueError, OSError, ClientError):
+        LOG.warning("Media registry unavailable; using basic controls only")
+    return registry, services
+
+async def media_profiles(request):
+    states = await ha_request(request, "GET", "states")
+    registry, services = await media_metadata(request)
+    return web.json_response({"profiles": [media_profile(s, registry, services, states)
+                             for s in states if s.get("entity_id", "").startswith("media_player.")]})
+
+async def media_command(request):
+    if request.content_type != "application/json":
+        raise web.HTTPUnsupportedMediaType()
+    try:
+        obj = await request.json()
+        eid = obj.get("entity_id") if isinstance(obj, dict) else None
+        if not isinstance(eid, str) or not eid.startswith("media_player."):
+            raise ValueError("Dispositivo non valido")
+        states = await ha_request(request, "GET", "states")
+        state = next((s for s in states if s.get("entity_id") == eid), None)
+        if state is None:
+            raise ValueError("Dispositivo non trovato")
+        registry, services = await media_metadata(request)
+        p = media_profile(state, registry, services, states)
+        endpoint, payload = media_plan(obj, state, p)
+    except (ValueError, TypeError) as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from exc
+    await ha_request(request, "POST", "services/" + endpoint, payload)
+    return web.json_response({"ok": True})
+
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.3"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.5"})
 
 async def start_session(app):
     app["session"]=ClientSession(timeout=ClientTimeout(total=8))
@@ -143,6 +198,8 @@ def create_app():
     app.router.add_get("/api/bootstrap",bootstrap)
     app.router.add_get("/api/areas",areas)
     app.router.add_post("/api/command",command)
+    app.router.add_get("/api/media-profiles",media_profiles)
+    app.router.add_post("/api/media-command",media_command)
     app.router.add_static("/assets/",STATIC/"assets",show_index=False,follow_symlinks=False)
     return app
 

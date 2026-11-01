@@ -4,10 +4,11 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.3**: sviluppo sul ramo `app/0.1.0-beta.3`; distribuzione dallo Store prevista dal ramo `main`.
+- `cl_control_web_next` **0.1.0-beta.5**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
-- Questa è una **prima beta funzionale**: Home, Luci, RGBW, Multimedia. KNX in sola descrizione; niente planimetrie/energia.
+- Beta funzionale: Home, Aree, Luci, RGBW e Multimedia; riepiloghi energia e altri moduli in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
+- Le luci mantengono una scheda compatta: tocco su nome/icona per i dettagli, interruttore separato per accendere e spegnere. Luminosità, colore, bianco RGBW e Kelvin compaiono solo se supportati dall'entità.
 - NON ancora collaudata dentro Home Assistant. Verificare CI e QA prima dell'uso su impianti reali.
 
 ## Installazione Home Assistant OS
@@ -33,9 +34,23 @@ Se il repository resta privato: copiare la sola cartella `cl_control_web_next` i
 
 - Il token `SUPERVISOR_TOKEN` viene usato dal backend, mai inviato al browser.
 - Nessuna porta host pubblicata. Solo Ingress autenticato.
-- Comandi HA ammessi: accensione/spegnimento `light`, luminosità e colore; play/pause, precedente/successivo e volume `media_player`.
+- Comandi HA ammessi: accensione/spegnimento `light`, luminosità e colore; controlli media supportati, sorgenti disponibili e telecomando con tasti consentiti.
 - Non sono implementati comandi sicurezza, serrature, allarmi o servizi generici.
 - L'App usa la sessione Ingress; non richiede una password dedicata.
+
+## Telecomando e rilevamento automatico
+
+Ogni card media apre un telecomando. Funzioni, volume, sorgenti e app vengono ricavati da `supported_features`, `source_list` e dai servizi registrati in Home Assistant. Non servono nomi di entità preimpostati.
+
+Navigazione, Home, Indietro, canali e numeri: LG webOS usa `webostv.button`; Samsung TV e Android TV Remote usano un'entità `remote` abilitata e associata allo stesso dispositivo nel registro. In caso di associazioni multiple non si sceglie arbitrariamente un telecomando. Altre integrazioni mantengono i controlli multimediali che espongono, senza tasti direzionali inventati. L'accensione dipende dal supporto dell'integrazione e dalla configurazione del TV (ad esempio Wake-on-LAN).
+
+Ogni comando del pannello viene validato nuovamente dal backend contro lo stato e le capacità attuali. Non sono ammessi codici telecomando, servizi generici o destinazioni arbitrari. Il token resta sul server. Il registro si legge via WebSocket del Core: se non accessibile, restano solo i controlli base. I servizi sono quelli documentati per [LG webOS](https://www.home-assistant.io/actions/webostv.button/), [Samsung TV](https://www.home-assistant.io/integrations/samsungtv/) e [Android TV Remote](https://www.home-assistant.io/integrations/androidtv_remote/).
+
+Il codice storico completo del telecomando citato in un'altra chat non è stato recuperato: questa implementazione usa i contratti correnti di Home Assistant, non dichiara parità con funzioni storiche non verificabili.
+
+## Verifica smartphone
+
+Layout controllato a 320, 390, 430, 768 e 1440 px: nessun overflow orizzontale della pagina media, logo singolo, finestra telecomando scrollabile. Comandi e rilevamento verificati con un Core simulato dietro il gateway reale; resta il collaudo Ingress e TV fisici. La navigazione principale su smartphone scorre orizzontalmente.
 
 ## Prossimi moduli
 
