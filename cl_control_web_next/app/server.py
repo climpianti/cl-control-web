@@ -62,7 +62,7 @@ async def ha_request(request: web.Request, method: str, endpoint: str, data=None
 async def bootstrap(request):
     states = await ha_request(request, "GET", "states")
     return web.json_response({
-        "version": "0.1.0-beta.8",
+        "version": "0.1.0-beta.9",
         "states": [safe for item in states if (safe := filter_state(item)) is not None],
     })
 
@@ -219,7 +219,7 @@ async def media_command(request):
     return web.json_response({"ok": True})
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.8"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.9"})
 
 async def start_session(app):
     app["session"]=ClientSession(timeout=ClientTimeout(total=8))
