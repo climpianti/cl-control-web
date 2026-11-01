@@ -235,7 +235,9 @@ async def access_diagnostics(request):
     return web.json_response(access_summary(context))
 
 async def get_layout(request):
-    return web.json_response({"layout": request.app["layout_store"].snapshot(), "editable": False})
+    store = request.app["layout_store"]
+    return web.json_response({"layout": store.snapshot(), "editable": False,
+        "storage_available": os.access(store.path.parent, os.W_OK)})
 
 
 async def preview_layout(request):
