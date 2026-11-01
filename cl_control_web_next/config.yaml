@@ -1,7 +1,7 @@
 name: "CL Control Web Next"
 slug: "cl_control_web_next"
 description: "Supervisione CL Impianti Blue Tech Premium - nuova App con Ingress"
-version: "0.1.0-beta.14"
+version: "0.1.0-beta.15"
 url: "https://github.com/climpianti/cl-control-web"
 arch:
   - amd64
@@ -21,5 +21,17 @@ homeassistant_api: true
 hassio_api: false
 auth_api: false
 backup: hot
-options: {}
-schema: {}
+options:
+  ai_provider: offline
+  ai_ollama_url: "http://192.168.1.100:11434"
+  ai_ollama_model: ""
+  ai_openai_model: ""
+  ai_openai_api_key: ""
+  ai_cloud_opt_in: false
+schema:
+  ai_provider: "list(offline|ollama|openai)"
+  ai_ollama_url: str
+  ai_ollama_model: str
+  ai_openai_model: str
+  ai_openai_api_key: password
+  ai_cloud_opt_in: bool
