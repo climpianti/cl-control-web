@@ -145,7 +145,7 @@ test('declarative dashboard editor has non-persistent preview and approval',()=>
  assert(!html.includes('data-layout-save'));
  const draft=run('(()=>{dashboardDraft={schema_version:1,revision:0,title:"La tua casa",widgets:[{id:"systems",type:"systems",title:"Sistemi"}]};return renderLayoutEditor()})()');
  assert(draft.includes('data-layout-save'));
- assert(draft.includes('Anteprima non salvata'));
+ assert(draft.includes('Modifiche da verificare'));
  assert(source.includes('X-CL-Layout-Confirm'));
 });
 
