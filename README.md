@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.7**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.8**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
@@ -63,3 +63,8 @@ Aree e piani, planimetrie, energia, Discovery KNX del Core, scene e AI Studio. L
 L'app si collega tramite WebSocket al Core HA usando SUPERVISOR_TOKEN, ma lo mantiene nel container. A ogni browser Ingress viene inviato solo un sottoinsieme sanitizzato dell'evento `state_changed`. Il browser non può inviare comandi sul socket. Il numero di collegamenti simultanei è limitato. Se la connessione cade, resta il controllo periodico ogni 9 secondi, e viene ristabilita quando la pagina torna visibile. `panel_admin: true` resta attivo: accesso multiutente/cliente rimandato a un'autorizzazione per utente verificata lato server.
 
 La configurazione di SENEC è esclusa dalla beta 7.
+
+
+## Energia (beta 8)
+
+La pagina Energia legge i dati già disponibili da Home Assistant. Preferisce SENEC (potenza casa, fotovoltaico, rete, batteria e SOC) ai sensori energetici derivati di CL Power Control; segnala la fonte di ogni lettura e mostra il verso dei flussi. La potenza rete positiva indica prelievo, negativa indica immissione; la potenza stato batteria SENEC negativa indica scarica ed è normalizzata esclusivamente per la visualizzazione. Nessuna azione energetica viene inviata ai dispositivi; la configurazione di Power Control richiede il normale accesso installatore.
