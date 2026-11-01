@@ -216,3 +216,16 @@ test('AI Studio may hand draft to editor, but cannot save without server validat
  assert.match(run('renderLayoutEditor()'),/data-layout-save disabled/);
  assert(source.includes('api("studio/draft"'));
 });
+
+
+test('beta14.1: active AI Studio textarea stops realtime repaints while typing',()=>{
+ const allowed=run(`(()=>{const original=document.querySelector;document.querySelector=selector=>selector.includes('textarea:focus')?{id:'studio-prompt'}:null;try{return refreshAllowed()}finally{document.querySelector=original}})()`);
+ assert.equal(allowed,false);
+});
+
+test('beta14.1: widget preview grid never forces narrow three-column energy tiles',()=>{
+ const css=fs.readFileSync(require('node:path').join(__dirname,'../cl_control_web_next/app/static/assets/app.css'),'utf8');
+ assert(css.includes('.layout-preview-shield .dynamic-widgets{grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr))'));
+ assert(css.includes('.dynamic-widgets .cl-grid{grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr))'));
+ assert(css.includes('.dynamic-widgets .system-grid,.dynamic-widgets .area-grid{grid-template-columns:repeat(auto-fit,minmax(min(180px,100%),1fr))'));
+});

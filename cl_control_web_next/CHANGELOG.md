@@ -1,3 +1,10 @@
+# 0.1.0-beta.14.1
+
+- Fix AI Studio: evita i render in tempo reale mentre il campo textarea riceve input, mantenendo focus e testo durante la digitazione.
+- Fix editor: la preview utilizza colonne basate sulla larghezza effettivamente disponibile e griglie interne adattive; niente widget compressi con testo verticale.
+- Aggiunti test di regressione JavaScript per digitazione e impaginazione widget.
+- Nessuna modifica alle API di controllo, agli indirizzi KNX o alla persistenza dei layout.
+
 # 0.1.0-beta.14
 
 - CL Control AI Studio: prima interfaccia per richieste in linguaggio naturale, con esempi e proposte di dashboard.

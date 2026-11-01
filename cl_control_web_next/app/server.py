@@ -75,7 +75,7 @@ async def ha_request(request: web.Request, method: str, endpoint: str, data=None
 async def bootstrap(request):
     states = await ha_request(request, "GET", "states")
     return web.json_response({
-        "version": "0.1.0-beta.14",
+        "version": "0.1.0-beta.14.1",
         "states": [safe for item in states if (safe := filter_state(item)) is not None],
     })
 
@@ -325,7 +325,7 @@ async def save_layout(request):
 
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.14"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.14.1"})
 
 async def start_session(app):
     await app["layout_store"].load()

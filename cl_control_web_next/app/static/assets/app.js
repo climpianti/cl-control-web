@@ -362,7 +362,7 @@ function applyStateDelta(message){
  return true;
 }
 function refreshAllowed(){
- return !document.hidden&&!busy&&!detailId&&!remoteId&&!document.querySelector("input:focus,select:focus");
+ return !document.hidden&&!busy&&!detailId&&!remoteId&&!document.querySelector("input:focus,textarea:focus,select:focus,[contenteditable]:focus");
 }
 function startRealtime(){
  if(typeof WebSocket==="undefined"||document.hidden||realtimeSocket)return;
