@@ -1,11 +1,18 @@
 name: CL Control Web Next App checks
 on:
   push:
-    branches: ["app/**"]
+    branches: [main, "app/**", "feature/**", "release/**", "fix/**"]
   pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cl-control-web-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -14,26 +21,38 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Dependencies
-        run: pip install "aiohttp>=3.13.2,<4.0" PyYAML
+      - name: Install Python dependencies
+        run: pip install -r cl_control_web_next/requirements.txt PyYAML
       - name: Compile Python
-        run: python -m compileall -q cl_control_web_next
-      - name: Validate Home Assistant App YAML and paths
+        run: python -m compileall -q cl_control_web_next tests
+      - name: Validate App, permissions and version consistency
         run: |
           python - <<'PY'
           from pathlib import Path
-          import yaml
-          a=yaml.safe_load(Path("cl_control_web_next/config.yaml").read_text())
-          assert a["slug"]=="cl_control_web_next"
+          import json, re, yaml
+          root = Path("cl_control_web_next")
+          a = yaml.safe_load((root/"config.yaml").read_text())
+          assert a["slug"] == "cl_control_web_next"
           assert a["ingress"] is True and a["homeassistant_api"] is True
-          assert a["ingress_port"]==8099
-          assert "ingress_entry" not in a
-          assert not a.get("ports")
-          assert Path("cl_control_web_next/app/static/assets/app.js").exists()
-          assert Path("cl_control_web_next/app/static/assets/app.css").exists()
-          assert Path("cl_control_web_next/app/static/assets/cl-logo.png").exists()
+          assert a["ingress_port"] == 8099
+          assert a["panel_admin"] is True, "No customer access before per-user authorization is audited"
+          assert not a.get("ports") and "ingress_entry" not in a
+          assert a.get("auth_api") is False and a.get("hassio_api") is False
+          version = a["version"]
+          server = (root/"app/server.py").read_text()
+          html = (root/"app/static/index.html").read_text()
+          changelog = (root/"CHANGELOG.md").read_text()
+          assert f'"version":"{version}"' in server
+          assert f'?v={version}' in html
+          assert changelog.startswith(f"# {version}\n")
+          for path in ("app/static/assets/app.js","app/static/assets/app.css","app/static/assets/cl-logo.png","app/media.py","app/realtime.py"):
+              assert (root/path).is_file(), path
+          assert "SUPERVISOR_TOKEN" not in (root/"app/static/assets/app.js").read_text()
+          print("App metadata and permissions validated:", version)
           PY
-      - name: Test API validation
-        run: python -m unittest discover -s tests -p 'test_app_*.py' -v
-      - name: Check JavaScript syntax
-        run: node --check cl_control_web_next/app/static/assets/app.js
+      - name: Run all Python tests (server, comfort, media and realtime)
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Check JavaScript syntax and frontend tests
+        run: |
+          node --check cl_control_web_next/app/static/assets/app.js
+          node --test tests/test_frontend.cjs

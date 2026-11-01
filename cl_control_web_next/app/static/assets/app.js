@@ -121,5 +121,50 @@ function comfortCard(s){
 }
 function comfortNumber(s,action,key,title,min,max,step,value){return '<form class="comfort-form" data-comfort-form="'+action+'" data-key="'+key+'" data-entity="'+esc(s.entity_id)+'"><label class="range-label">'+title+'<input aria-label="'+title+' '+esc(name(s))+'" type="number" required min="'+min+'" max="'+max+'" step="'+step+'" value="'+(Number.isFinite(value)?value:'')+'" '+(!valid(s)?'disabled':'')+'></label><button class="action" '+(!valid(s)?'disabled':'')+'>Applica</button></form>'}
 
-render();Promise.all([refresh(),loadAreas()]);setInterval(()=>{if(!document.hidden&&!busy&&!detailId&&!remoteId&&!document.querySelector("input:focus,select:focus"))refresh()},9000);
+// Ingress-only HA state relay. The browser never receives the Supervisor token.
+let realtimeSocket=null,realtimeReady=false,realtimeRetry=null;
+function applyStateDelta(message){
+ if(!message||message.type!=="state"||typeof message.entity_id!=="string")return false;
+ const id=message.entity_id,idx=data.findIndex(item=>item.entity_id===id);
+ if(message.state===null){
+  if(idx===-1)return false;
+  data.splice(idx,1);return true;
+ }
+ const state=message.state;
+ if(!state||state.entity_id!==id||typeof state.state!=="string"||!state.attributes||typeof state.attributes!=="object")return false;
+ if(idx!==-1&&JSON.stringify(data[idx])===JSON.stringify(state))return false;
+ if(idx===-1)data.push(state);else data[idx]=state;
+ return true;
+}
+function refreshAllowed(){
+ return !document.hidden&&!busy&&!detailId&&!remoteId&&!document.querySelector("input:focus,select:focus");
+}
+function startRealtime(){
+ if(typeof WebSocket==="undefined"||document.hidden||realtimeSocket)return;
+ const url=new URL("api/realtime",window.location.href);
+ url.protocol=url.protocol==="https:"?"wss:":"ws:";
+ const ws=new WebSocket(url.href);
+ realtimeSocket=ws;
+ ws.addEventListener("message",evt=>{
+  let packet;try{packet=JSON.parse(evt.data)}catch{return}
+  if(packet.type==="ready"){realtimeReady=true;refresh();return}
+  if(packet.type==="error"){ws.close();return}
+  if(applyStateDelta(packet)&&refreshAllowed())render();
+ });
+ ws.addEventListener("close",()=>{
+  if(realtimeSocket!==ws)return;
+  realtimeSocket=null;realtimeReady=false;
+  if(!document.hidden){clearTimeout(realtimeRetry);realtimeRetry=setTimeout(startRealtime,5000)}
+ });
+ ws.addEventListener("error",()=>ws.close());
+}
+render();
+Promise.all([refresh(),loadAreas()]).then(startRealtime);
+setInterval(()=>{if(!realtimeReady&&refreshAllowed())refresh()},9000);
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden){clearTimeout(realtimeRetry);realtimeSocket?.close();return}
+ refresh();
+ if(!realtimeSocket)startRealtime();
+});
+
 

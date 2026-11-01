@@ -1,3 +1,11 @@
+# 0.1.0-beta.7
+
+- Bridge realtime via WebSocket Home Assistant -> Ingress: riceve esclusivamente gli stati sanitizzati delle entità supportate, senza inviare SUPERVISOR_TOKEN al browser.
+- Riconnessione dopo interruzioni e fallback automatico al polling; sospensione degli aggiornamenti visivi durante dialoghi, ricerche e regolazioni.
+- Test GitHub Actions ampliati a tutti i test Python e frontend, attivi su push main, branch e Pull Request.
+- Mantiene l'accesso solo amministratore fino alla progettazione di autorizzazioni utente verificate: nessun ampliamento dei permessi cliente.
+- CL Power Control e SENEC non modificati. Collaudo di apparecchi reali e controllo autorizzazioni cliente ancora necessario.
+
 # 0.1.0-beta.6
 
 - Aperture: Apri, Stop, Chiudi e posizione con conferma Applica.

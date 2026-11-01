@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const source=fs.readFileSync(require('node:path').join(__dirname,'../cl_control_web_next/app/static/assets/app.js'),'utf8');
 const sandbox={document:{getElementById:()=>({}),querySelector:()=>null,querySelectorAll:()=>[]},setInterval:()=>{}};
-vm.createContext(sandbox);vm.runInContext(source.slice(0,source.lastIndexOf('render();Promise.all')),sandbox);
+vm.createContext(sandbox);vm.runInContext(source.slice(0,source.lastIndexOf('\nrender();\nPromise.all')),sandbox);
 const run=code=>vm.runInContext(code,sandbox);
 test('light tint follows RGB and brightness without darkening the hue twice',()=>{
  const v=JSON.parse(JSON.stringify(run(`lightVisual({state:'on',attributes:{supported_color_modes:['rgb'],rgb_color:[0,50,0],brightness:51}})`)));
@@ -50,4 +50,21 @@ test('cover controls follow features and retain unknown position',()=>{
 test('climate controls use entity limits modes and measured temperature',()=>{
  const html=run(`card({entity_id:'climate.test',state:'off',attributes:{supported_features:25,hvac_modes:['heat','off'],preset_modes:['comfort'],fan_modes:['low'],min_temp:16,max_temp:28,target_temp_step:0.1,temperature:22.7,current_temperature:21}})`);
  assert.match(html,/min="16" max="28" step="0.1"/);assert.match(html,/set_hvac_mode/);assert.match(html,/set_preset_mode/);assert.match(html,/set_fan_mode/);assert.match(html,/ambiente: 21/);
+});
+
+test('realtime accepts only matched filtered state events and removals',()=>{
+  const changed=run(`(()=>{data=[{entity_id:'light.kitchen',state:'off',attributes:{}}];return applyStateDelta({type:'state',entity_id:'light.kitchen',state:{entity_id:'light.kitchen',state:'on',attributes:{brightness:128}}})})()`);
+  assert.equal(changed,true);
+  assert.equal(run("data[0].state"),"on");
+  assert.equal(run("applyStateDelta({type:'state',entity_id:'light.kitchen',state:{entity_id:'light.else',state:'on',attributes:{}}})"),false);
+  assert.equal(run("applyStateDelta({type:'state',entity_id:'light.kitchen',state:null})"),true);
+  assert.equal(run("data.length"),0);
+  assert.equal(run("applyStateDelta({type:'unknown',entity_id:'light.x',state:null})"),false);
+});
+test('client transport has a safe reconnect and background polling fallback',()=>{
+  assert(source.includes('new WebSocket(url.href)'));
+  assert(source.includes('realtimeReady=false'));
+  assert(source.includes('!realtimeReady&&refreshAllowed()'));
+  assert(source.includes('visibilitychange'));
+  assert(!source.includes('SUPERVISOR_TOKEN'));
 });

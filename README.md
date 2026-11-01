@@ -4,12 +4,13 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.6**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.7**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
 - Le luci mantengono una scheda compatta: tocco su nome/icona per i dettagli, interruttore separato per accendere e spegnere. Luminosità, colore, bianco RGBW e Kelvin compaiono solo se supportati dall'entità.
-- NON ancora collaudata dentro Home Assistant. Verificare CI e QA prima dell'uso su impianti reali.
+- Beta 7: bridge WebSocket bidirezionale a livello di trasporto ma con soli eventi di stato in uscita verso il browser, filtro attributi e fallback polling in caso di perdita della connessione. Le azioni sono sempre autorizzate dal backend e la pagina rimane amministrativa.
+- Collaudo reale di luci, aperture, TV e clima ancora richiesto prima della distribuzione ai clienti.
 
 ## Installazione Home Assistant OS
 
@@ -55,3 +56,10 @@ Layout controllato a 320, 390, 430, 768 e 1440 px: nessun overflow orizzontale d
 ## Prossimi moduli
 
 Aree e piani, planimetrie, energia, Discovery KNX del Core, scene e AI Studio. Le funzioni vengono introdotte per beta successive con test e rollback.
+
+
+## Realtime e accesso (beta 7)
+
+L'app si collega tramite WebSocket al Core HA usando SUPERVISOR_TOKEN, ma lo mantiene nel container. A ogni browser Ingress viene inviato solo un sottoinsieme sanitizzato dell'evento `state_changed`. Il browser non può inviare comandi sul socket. Il numero di collegamenti simultanei è limitato. Se la connessione cade, resta il controllo periodico ogni 9 secondi, e viene ristabilita quando la pagina torna visibile. `panel_admin: true` resta attivo: accesso multiutente/cliente rimandato a un'autorizzazione per utente verificata lato server.
+
+La configurazione di SENEC è esclusa dalla beta 7.
