@@ -50,6 +50,10 @@ jobs:
           assert "SUPERVISOR_TOKEN" not in (root/"app/static/assets/app.js").read_text()
           print("App metadata and permissions validated:", version)
           PY
+      - name: Verify App container builds with non-root storage init
+        run: |
+          docker build --tag cl-control-web-ci cl_control_web_next
+          docker run --rm --entrypoint /bin/sh cl-control-web-ci -c 'command -v gosu && id clcontrol && install -d -m 700 -o 10001 -g 10001 /data && test -w /data'
       - name: Run all Python tests (server, comfort, media and realtime)
         run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: Check JavaScript syntax and frontend tests
