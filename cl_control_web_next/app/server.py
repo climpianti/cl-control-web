@@ -298,7 +298,7 @@ async def start_session(app):
     await app["session"].close()
 
 def create_app():
-    app=web.Application(middlewares=[security_headers],client_max_size=MAX_BODY)
+    app=web.Application(middlewares=[security_headers],client_max_size=12 * 1024)
     app.cleanup_ctx.append(start_session)
     app["layout_store"] = LayoutStore()
     app.router.add_get("/",index)
