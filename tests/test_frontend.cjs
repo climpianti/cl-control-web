@@ -68,3 +68,39 @@ test('client transport has a safe reconnect and background polling fallback',()=
   assert(source.includes('visibilitychange'));
   assert(!source.includes('SUPERVISOR_TOKEN'));
 });
+
+
+test('SENEC energy data takes priority over circular CL Power Control sensor',()=>{
+ const result=JSON.parse(JSON.stringify(run(`(()=>{data=[
+ {entity_id:"sensor.senec_house_power",state:"1446.8",attributes:{unit_of_measurement:"W"}},
+ {entity_id:"sensor.senec_solar_generated_power",state:"742",attributes:{unit_of_measurement:"W"}},
+ {entity_id:"sensor.senec_grid_state_power",state:"12.3",attributes:{unit_of_measurement:"W"}},
+ {entity_id:"sensor.cl_power_control_energy_rete",state:"unknown",attributes:{unit_of_measurement:"W"}},
+ {entity_id:"sensor.senec_battery_state_power",state:"-347.5",attributes:{unit_of_measurement:"W"}},
+ {entity_id:"sensor.senec_battery_charge_percent",state:"63",attributes:{unit_of_measurement:"%"}}
+ ];return energy()})()`)));
+ assert.equal(result.house.value,1446.8);
+ assert.equal(result.house.source,'SENEC');
+ assert.equal(result.grid.value,12.3);
+ assert.equal(result.battery.value,347.5);
+ assert.equal(result.soc.value,63);
+ const html=run('energyDashboard()');
+ assert.match(html,/Prelievo dalla rete/);
+ assert.match(html,/Batteria in scarica/);
+ assert.match(html,/Fonte: SENEC/);
+});
+test('SENEC energy reports unavailable instead of inventing values',()=>{
+ const result=JSON.parse(JSON.stringify(run(`(()=>{data=[{entity_id:"sensor.senec_house_power",state:"unavailable",attributes:{unit_of_measurement:"W"}},{entity_id:"sensor.cl_power_control_energy_consumo_casa",state:"unknown",attributes:{unit_of_measurement:"W"}}];return energy()})()`)));
+ assert.equal(result.house,null);
+ assert.equal(result.solar,null);
+ assert.equal(result.grid,null);
+ assert.match(run('energyDashboard()'),/Dato non disponibile/);
+});
+test('Exported power and charging battery direction is explicit',()=>{
+ const result=JSON.parse(JSON.stringify(run(`(()=>{data=[{entity_id:"sensor.senec_grid_state_power",state:"-120",attributes:{unit_of_measurement:"W"}},{entity_id:"sensor.senec_battery_state_power",state:"500",attributes:{unit_of_measurement:"W"}}];return energy()})()`)));
+ assert.equal(result.grid.value,-120);
+ assert.equal(result.battery.value,-500);
+ const html=run('energyDashboard()');
+ assert.match(html,/Immissione in rete/);
+ assert.match(html,/Batteria in carica/);
+});

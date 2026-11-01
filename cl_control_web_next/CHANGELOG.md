@@ -1,3 +1,11 @@
+# 0.1.0-beta.8
+
+- Energia: pannello realtime in sola lettura con sorgenti SENEC indipendenti prioritarie.
+- Fotovoltaico, consumo casa, rete e batteria con direzione import/export e carica/scarica; SOC con provenienza dei dati.
+- Fallback ai sensori CL Power Control se SENEC non disponibile e indicazione esplicita dei valori mancanti.
+- Nessuna stima di bilanci energetici tra sensori non coerenti; nessun cambiamento ai carichi o alla configurazione di Power Control.
+- Sensori e sicurezza continuano a essere gestiti dal backend HA tramite Ingress; test CI estesi.
+
 # 0.1.0-beta.7
 
 - Bridge realtime via WebSocket Home Assistant -> Ingress: riceve esclusivamente gli stati sanitizzati delle entità supportate, senza inviare SUPERVISOR_TOKEN al browser.
