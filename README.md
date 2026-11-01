@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.13**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.14**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
@@ -104,3 +104,8 @@ Supervisor monta `/data` con proprieta root: all'avvio uno script limitato alla 
 ## Editor visuale beta 13
 
 Apri **Personalizza** dalla Web App (ancora accessibile soltanto da amministratore). Modifica il titolo della dashboard, aggiungi sezioni o singole entita tramite catalogo validato, scegli le entita, riordina con i pulsanti Su/Giu e rimuovi widget. Il rendering dell'anteprima e non interattivo. Clicca **Verifica anteprima** per validare con il server e quindi **Approva e salva** per memorizzare il layout nel volume persistente. **Annulla modifiche** ripristina la configurazione attiva senza scrivere. La generazione automatica precedente rimane disponibile. Nessuna integrazione LLM e ancora abilitata e nessun permesso cliente viene concesso.
+
+
+## CL Control AI Studio beta 14
+
+Dal menu dell'App, **AI Studio** accetta una breve richiesta (max 700 caratteri). Questa prima fase utilizza un pianificatore locale deterministico e nessun LLM reale: propone widget basati esclusivamente sul catalogo di entita riconosciute in Home Assistant. Una proposta valida viene passata a **Personalizza** come bozza; soltanto la verifica server, la conferma esplicita e l'autorizzazione tramite Ingress possono salvarla nell'archivio persistente. In caso di richiesta non interpretata, l'archivio attivo non viene sovrascritto. Nessun comando dispositivo e consentito all'AI Studio. Il futuro modello cloud o locale deve essere installato e autorizzato separatamente e il suo output passera comunque dal validatore dei layout. L'accesso cliente resta disabilitato.
