@@ -1,7 +1,7 @@
 name: "CL Control Web Next"
 slug: "cl_control_web_next"
 description: "Supervisione CL Impianti Blue Tech Premium - nuova App con Ingress"
-version: "0.1.0-beta.12"
+version: "0.1.0-beta.13"
 url: "https://github.com/climpianti/cl-control-web"
 arch:
   - amd64
