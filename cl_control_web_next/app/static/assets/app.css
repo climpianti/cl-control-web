@@ -108,3 +108,30 @@ svg{width:1em;height:1em;flex-shrink:0;vertical-align:middle}
 .layout-message{font-size:13px;color:#87d8fb}
 @media(max-width:1200px){.dynamic-widgets{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:850px){.dynamic-widgets{grid-template-columns:minmax(0,1fr)}}
+
+/* Beta 13 · visual editor for installation-specific dashboards */
+.layout-editor-head h2{margin-bottom:8px}
+.layout-editor-head p{max-width:800px;color:#b9d5e6;line-height:1.55}
+.layout-editor-grid{display:grid;grid-template-columns:minmax(290px,390px) minmax(0,1fr);gap:20px;align-items:start}
+.layout-editor-controls,.layout-editor-preview{min-width:0;border:1px solid #377a9f;border-radius:18px;background:#0a263e;padding:18px}
+.layout-editor-controls h3,.layout-editor-preview h3{font-size:16px;margin:22px 0 14px}
+.layout-editor-controls label{display:grid;gap:7px;color:#bbd4e5;font-size:13px}
+.layout-editor-controls input,.layout-editor-controls select{width:100%;min-height:44px;border:1px solid #4583aa;border-radius:10px;background:#143a57;color:#f4fbff;padding:8px 12px;font-size:16px;min-width:0}
+.layout-edit-rows{display:grid;gap:12px;max-height:560px;overflow-y:auto;overscroll-behavior:contain;padding-right:3px}
+.layout-edit-row{border:1px solid #366887;border-radius:13px;background:#102f48;padding:13px;display:grid;gap:12px}
+.layout-edit-head{display:flex;justify-content:space-between;align-items:center;gap:10px;color:#d5eeff;font-size:14px}
+.layout-edit-head span{color:#9cc3db;font-size:12px}
+.layout-edit-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.layout-edit-buttons button,.layout-add-buttons button{border:1px solid #367fa5;border-radius:9px;background:#144469;color:#ecf8ff;padding:10px 6px;min-height:41px}
+.layout-edit-buttons button:disabled,.layout-add-buttons button:disabled{opacity:.4;cursor:not-allowed}
+.layout-add-buttons{display:flex;flex-wrap:wrap;gap:8px}
+.layout-add-buttons button{padding:9px 12px}
+.layout-editor-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:24px}
+.layout-editor-actions .action{min-height:45px}
+.layout-editor-actions .action:disabled{opacity:.4;cursor:not-allowed}
+.layout-editor-preview{background:linear-gradient(140deg,#0c2b45,#081c32)}
+.layout-preview-shield{isolation:isolate}
+.layout-preview-shield .dynamic-widgets{grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));pointer-events:none}
+.layout-preview-shield :is(button,input,select,a){pointer-events:none}
+@media(max-width:1150px){.layout-editor-grid{grid-template-columns:minmax(0,1fr)}.layout-edit-rows{max-height:none}}
+@media(max-width:560px){.layout-editor-controls,.layout-editor-preview{padding:13px}.layout-edit-buttons{gap:4px}.layout-edit-buttons button{font-size:12px}.layout-editor-actions .action{width:100%}}

@@ -20,6 +20,49 @@ ENTITY_RE = re.compile(r"^(?:light|cover|climate|sensor|binary_sensor|media_play
 ID_RE = re.compile(r"^[a-z][a-z0-9_-]{0,39}$")
 MAX_WIDGETS = 24
 MAX_BYTES = 8192
+
+# The same catalog guides the installer UI and later AI layout proposals.
+# It does not authorize service calls or expand Home Assistant permissions.
+WIDGET_TYPES = (
+    {"type": "systems", "label": "Sistemi", "description": "Luci, aperture, clima e multimedia"},
+    {"type": "areas", "label": "Aree", "description": "Ambienti disponibili su Home Assistant"},
+    {"type": "cl_systems", "label": "Sistemi CL", "description": "Irrigazione ed energia CL"},
+    {"type": "energy", "label": "Energia", "description": "Valori energetici in tempo reale"},
+    {"type": "entity", "label": "Singola entita", "description": "Card per una entita autorizzata"},
+)
+
+
+def build_catalog(states):
+    """Public-to-admin subset only: no values, credentials, attributes or tokens.
+
+    Entity ids must obey the same allowlist as validate_layout(), so an AI
+    planner cannot pick actions, arbitrary embeds, or unsupported domains.
+    """
+    if not isinstance(states, list):
+        raise ValueError("Inventario dispositivi non valido")
+    entities = {}
+    for state in states:
+        if not isinstance(state, dict):
+            continue
+        entity_id = state.get("entity_id")
+        if not isinstance(entity_id, str) or not ENTITY_RE.fullmatch(entity_id):
+            continue
+        attrs = state.get("attributes") or {}
+        name = attrs.get("friendly_name") if isinstance(attrs, dict) else None
+        if not isinstance(name, str) or not name.strip():
+            name = entity_id
+        name = name.strip()[:80]
+        entities[entity_id] = {
+            "entity_id": entity_id,
+            "name": name,
+            "domain": entity_id.split(".", 1)[0],
+        }
+    return {
+        "schema_version": SCHEMA,
+        "max_widgets": MAX_WIDGETS,
+        "widget_types": [dict(value) for value in WIDGET_TYPES],
+        "entities": sorted(entities.values(), key=lambda item: (item["name"].casefold(), item["entity_id"])),
+    }
 STORE_FILE = Path(os.environ.get("CL_CONTROL_LAYOUT_PATH", "/data/dashboard-layout.json"))
 DEFAULT = {
     "schema_version": SCHEMA,
