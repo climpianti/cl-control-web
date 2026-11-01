@@ -148,3 +148,49 @@ test('declarative dashboard editor has non-persistent preview and approval',()=>
  assert(draft.includes('Anteprima non salvata'));
  assert(source.includes('X-CL-Layout-Confirm'));
 });
+
+
+test('beta13 visual editor can add move rename and remove widgets without saving',()=>{
+ const result=JSON.parse(JSON.stringify(run(`(()=>{
+   dashboardLayout={schema_version:1,revision:0,title:'Casa',widgets:[
+     {id:'systems',type:'systems',title:'Sistemi'},
+     {id:'areas',type:'areas',title:'Aree'}]};
+   dashboardDraft=null;
+   layoutCatalog={entities:[{entity_id:'light.kitchen',name:'Cucina'}]};
+   addLayoutWidget('entity');
+   const added=dashboardDraft.widgets[2];
+   moveLayoutWidget(2,-1);
+   const reordered=dashboardDraft.widgets[1].id===added.id;
+   removeLayoutWidget(1);
+   return {added,reordered,count:dashboardDraft.widgets.length,validated:layoutValidated};
+ })()`)));
+ assert.equal(result.added.entity_id,'light.kitchen');
+ assert.equal(result.added.type,'entity');
+ assert.equal(result.reordered,true);
+ assert.equal(result.count,2);
+ assert.equal(result.validated,false);
+});
+test('beta13 editor requires validated preview before save',()=>{
+ const html=run('renderLayoutEditor()');
+ assert(html.includes('data-layout-preview'));
+ assert(html.includes('data-layout-save disabled'));
+ assert(html.includes('data-add-widget="entity"'));
+ assert(html.includes('data-edit-title="0"'));
+ assert(html.includes('inert'));
+ assert(!html.includes('onclick='));
+});
+test('beta13 draft change invalidates an approved preview and rejects noncatalog widget',()=>{
+ const result=JSON.parse(JSON.stringify(run(`(()=>{
+  dashboardLayout={schema_version:1,revision:1,title:'Casa',widgets:[{id:'systems',type:'systems',title:'Sistemi'}]};
+  dashboardDraft=cloneLayout(dashboardLayout);
+  layoutValidated=true;
+  addLayoutWidget('javascript');
+  const rejected=dashboardDraft.widgets.length===1;
+  editLayoutDraft(d=>{d.title='Villa'});
+  return {rejected,verified:layoutValidated,title:dashboardDraft.title,revision:dashboardLayout.revision};
+ })()`)));
+ assert.equal(result.rejected,true);
+ assert.equal(result.verified,false);
+ assert.equal(result.title,'Villa');
+ assert.equal(result.revision,1);
+});
