@@ -6,7 +6,7 @@ from copy import deepcopy
 import unittest
 from unittest.mock import AsyncMock, patch
 from aiohttp.test_utils import TestClient, TestServer
-from cl_control_web_next.app.layout import LayoutStore, DEFAULT, validate_layout, suggest_layout
+from cl_control_web_next.app.layout import LayoutStore, DEFAULT, validate_layout, suggest_layout, build_catalog
 from cl_control_web_next.app.server import create_app
 
 
@@ -37,6 +37,31 @@ class SchemaTests(unittest.TestCase):
         checked["widgets"].clear()
         self.assertEqual(len(draft["widgets"]), 3)
 
+
+class CatalogTests(unittest.TestCase):
+    def test_only_allowed_entity_types_and_public_fields(self):
+        inventory = [
+            {"entity_id": "light.kitchen", "state": "on", "attributes": {
+                "friendly_name": "Cucina", "access_token": "SECRET", "secret": "hidden"}},
+            {"entity_id": "sensor.temperature", "state": "22", "attributes": {"friendly_name": "Temperatura"}},
+            {"entity_id": "lock.front_door", "state": "locked", "attributes": {"pin": "1234"}},
+            {"entity_id": "script.open_gate", "state": "off", "attributes": {}},
+        ]
+        result = build_catalog(inventory)
+        self.assertEqual(result["schema_version"], 1)
+        self.assertEqual(result["max_widgets"], 24)
+        self.assertEqual({e["entity_id"] for e in result["entities"]},
+                         {"light.kitchen", "sensor.temperature"})
+        self.assertNotIn("SECRET", str(result))
+        self.assertNotIn("1234", str(result))
+        self.assertEqual(len(result["widget_types"]), 5)
+
+    def test_entity_rejects_executable_markup_and_bad_ids(self):
+        values = [{"entity_id": "<script>alert(1)</script>", "attributes": {}},
+                  {"entity_id": "sensor.ok", "attributes": {"friendly_name": "<img onerror=evil>"}}]
+        result = build_catalog(values)
+        self.assertEqual(len(result["entities"]), 1)
+        self.assertEqual(result["entities"][0]["entity_id"], "sensor.ok")
 
 class StorageTests(unittest.IsolatedAsyncioTestCase):
     async def test_atomic_save_restart_and_cas(self):
