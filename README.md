@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.12**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.13**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
@@ -99,3 +99,8 @@ Questa e la prima base per CL Control AI Studio. Il modello JSON versionato elen
 ## Permessi del volume dati (beta 12)
 
 Supervisor monta `/data` con proprieta root: all'avvio uno script limitato alla sola directory dell'App imposta permessi `0700` e proprietario uid `10001`, prima di avviare il processo web con `gosu` non privilegiato. Il file JSON resta `0600` ed e protetto da scrittura atomica. Per verificare la persistenza, `/api/layout` deve restituire `storage_available: true`.
+
+
+## Editor visuale beta 13
+
+Apri **Personalizza** dalla Web App (ancora accessibile soltanto da amministratore). Modifica il titolo della dashboard, aggiungi sezioni o singole entita tramite catalogo validato, scegli le entita, riordina con i pulsanti Su/Giu e rimuovi widget. Il rendering dell'anteprima e non interattivo. Clicca **Verifica anteprima** per validare con il server e quindi **Approva e salva** per memorizzare il layout nel volume persistente. **Annulla modifiche** ripristina la configurazione attiva senza scrivere. La generazione automatica precedente rimane disponibile. Nessuna integrazione LLM e ancora abilitata e nessun permesso cliente viene concesso.
