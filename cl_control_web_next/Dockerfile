@@ -8,6 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends gosu \
     && useradd -r -u 10001 -d /opt/cl-control-web clcontrol
 COPY --chown=10001:10001 app/ ./app/
 EXPOSE 8099
-# /data is an externally mounted Supervisor volume and starts root-owned.
-# Fix its ownership before dropping privileges; the web process never runs as root.
-CMD ["/bin/sh", "-c", "install -d -m 700 -o 10001 -g 10001 /data && exec gosu clcontrol python app/server.py"]
+# Initialize private data/configuration permissions before dropping privileges.
+# The web server runs as clcontrol; configuration is neither copied nor printed.
+CMD ["python", "app/startup.py"]
