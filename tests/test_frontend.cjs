@@ -104,3 +104,26 @@ test('Exported power and charging battery direction is explicit',()=>{
  assert.match(html,/Immissione in rete/);
  assert.match(html,/Batteria in carica/);
 });
+
+
+test('mobile navigation has five distinct destinations and represents nested pages',()=>{
+ const labels=JSON.parse(JSON.stringify(run('mobileNav.map(([n])=>n)')));
+ assert.deepEqual(labels,['Home','Aree','Luci','Energia','Altro']);
+ assert.equal(run('mobileNav.length'),5);
+ assert.match(run('bottomNavigation()'),/aria-label="Navigazione principale smartphone"/);
+ assert.match(run('bottomNavigation()'),/data-page="Altro"/);
+ run('page="Area"');
+ assert.match(run('bottomNavigation()'),/data-page="Aree" class="selected"/);
+ run('page="Multimedia"');
+ assert.match(run('bottomNavigation()'),/data-page="Altro" class="selected"/);
+});
+test('saved scenes stay owned by Core and open its canonical native route',()=>{
+ assert.equal(run('CORE_SCENES_PATH'),'/cl-control/light-scenes');
+ const page=run('nativeScenesPage()');
+ assert(page.includes('href="/cl-control/light-scenes"'));
+ assert.match(page,/target="_top"/);
+ assert.match(page,/archivio personale per utente/);
+ assert(!source.includes('SUPERVISOR_TOKEN'));
+ const other=run('morePage()');
+ assert(other.includes('data-page="Scenari"'));
+});
