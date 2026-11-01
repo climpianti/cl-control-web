@@ -216,3 +216,16 @@ test('AI Studio may hand draft to editor, but cannot save without server validat
  assert.match(run('renderLayoutEditor()'),/data-layout-save disabled/);
  assert(source.includes('api("studio/draft"'));
 });
+
+test('beta15 displays real LLM provider status without secrets',()=>{
+ const html=run(`(()=>{studioStatus={llm_ready:true,provider:"ollama",reason:"Ollama locale configurato",model:"qwen2.5:7b"};return renderStudio()})()`);
+ assert.match(html,/Ollama locale attivo/);
+ assert.match(html,/Ollama locale configurato/);
+ const cloud=run(`(()=>{studioStatus={llm_ready:true,provider:"openai",reason:"OpenAI cloud attivo"};return renderStudio()})()`);
+ assert.match(cloud,/OpenAI cloud attivo/);
+ assert(source.includes('api("studio/status")'));
+ assert(!source.includes("ai_openai_api_key"));
+});
+test('beta15 supported provider set does not permit arbitrary providers',()=>{
+ assert(source.includes('["offline-rules","ollama","openai"].includes(res.provider)'));
+});
