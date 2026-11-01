@@ -1,3 +1,9 @@
+# 0.1.0-beta.12
+
+- Corretto il volume persistente Supervisor `/data` inizialmente root-owned: all'avvio vengono preparati permessi esclusivi per l'utente applicativo e poi il processo Python viene eseguito con uid 10001 tramite gosu.
+- Nessun dato dashboard cancellato, nessuna modifica all'archivio dei layout o alle entita Home Assistant.
+- Il salvataggio della dashboard deve ora risultare disponibile dall'endpoint `/api/layout`.
+
 # 0.1.0-beta.11
 
 - Primo motore di dashboard dinamiche: schema versionato, widget con tipi e campi autorizzati, rendering guidato dai dati dell'impianto.
