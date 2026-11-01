@@ -4,7 +4,7 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.14**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.15**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
 - Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
@@ -109,3 +109,12 @@ Apri **Personalizza** dalla Web App (ancora accessibile soltanto da amministrato
 ## CL Control AI Studio beta 14
 
 Dal menu dell'App, **AI Studio** accetta una breve richiesta (max 700 caratteri). Questa prima fase utilizza un pianificatore locale deterministico e nessun LLM reale: propone widget basati esclusivamente sul catalogo di entita riconosciute in Home Assistant. Una proposta valida viene passata a **Personalizza** come bozza; soltanto la verifica server, la conferma esplicita e l'autorizzazione tramite Ingress possono salvarla nell'archivio persistente. In caso di richiesta non interpretata, l'archivio attivo non viene sovrascritto. Nessun comando dispositivo e consentito all'AI Studio. Il futuro modello cloud o locale deve essere installato e autorizzato separatamente e il suo output passera comunque dal validatore dei layout. L'accesso cliente resta disabilitato.
+
+
+## CL Control AI Studio beta 15: provider locali e cloud
+
+La modalita iniziale e **offline** e non effettua alcuna chiamata a un modello. Per attivare un modello reale, aprire **Impostazioni -> App -> CL Control Web Next -> Configurazione**. Impostare `ai_provider` su `ollama` e scegliere `ai_ollama_url` (solamente `http://IP-privato:11434`) e `ai_ollama_model`. Alternativamente impostare `ai_provider` su `openai`, `ai_openai_model`, `ai_openai_api_key` e `ai_cloud_opt_in: true`. Quest'ultima opzione e un consenso esplicito al trasferimento della richiesta e della selezione di nomi/ID delle entita verso OpenAI API: non e necessaria per uso offline o Ollama e non e attivata automaticamente. La chiave va inserita esclusivamente nell'opzione password del Supervisor: non inserirla nel repository, in chat o nel browser.
+
+AI Studio mostra il provider e l'eventuale fallback. Con provider attivo, il backend invia un inventario compatto di al massimo 48 entita supportate (ID e nomi), il testo della richiesta e il layout attuale ridotto (solo titolo e widget). Non invia valori dei sensori, posizioni, PIN, log, credenziali o chiavi KNX. Per protezione SSRF sono vietati host pubblici, loopback e indirizzi link-local per Ollama; la porta e fissata a 11434. L'endpoint OpenAI usa un URL fisso HTTPS. I provider non possono chiamare servizi HA: restituiscono esclusivamente un JSON rigorosamente validato, da verificare poi in Personalizza, e il layout non viene applicato automaticamente. In caso di errore LLM si effettua un fallback deterministico locale, segnalato all'installatore.
+
+**Nota:** La funzione cloud e opzionale. Evitare nomi delle entita contenenti informazioni personali se si sceglie OpenAI. I modelli disponibili, i costi API e le policy devono essere verificati sul proprio account prima dell'attivazione; non si presume alcuna sottoscrizione API automatica.
