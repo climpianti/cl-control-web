@@ -9,6 +9,10 @@ from pathlib import Path
 from aiohttp import web, ClientSession, ClientTimeout, ClientError
 from copy import deepcopy
 try:
+    from .studio import intent_draft
+except ImportError:
+    from studio import intent_draft
+try:
     from .layout import LayoutStore, validate_layout, suggest_layout, build_catalog
 except ImportError:
     from layout import LayoutStore, validate_layout, suggest_layout, build_catalog
@@ -71,7 +75,7 @@ async def ha_request(request: web.Request, method: str, endpoint: str, data=None
 async def bootstrap(request):
     states = await ha_request(request, "GET", "states")
     return web.json_response({
-        "version": "0.1.0-beta.13",
+        "version": "0.1.0-beta.14",
         "states": [safe for item in states if (safe := filter_state(item)) is not None],
     })
 
@@ -234,6 +238,29 @@ async def access_diagnostics(request):
     context = identity_from_ingress(request.remote, request.headers)
     return web.json_response(access_summary(context))
 
+async def studio_draft(request):
+    """Offline intent-to-layout proposal. No external AI and no device commands."""
+    context = identity_from_ingress(request.remote, request.headers)
+    if not context.ingress_verified:
+        raise web.HTTPForbidden(text="Ingress authentication required")
+    if request.content_type != "application/json":
+        raise web.HTTPUnsupportedMediaType()
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict) or set(payload) != {"instruction"}:
+            raise ValueError("Formato richiesta non valido")
+        states = await ha_request(request, "GET", "states")
+        proposal = intent_draft(payload["instruction"], states, request.app["layout_store"].snapshot())
+    except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+        raise web.HTTPBadRequest(text=str(exc)) from exc
+    return web.json_response({
+        "status": "draft",
+        "applied": False,
+        "provider": "offline-rules",
+        **proposal,
+    })
+
+
 async def layout_catalog(request):
     """An administrative catalog without HA state values or secret attributes."""
     context = identity_from_ingress(request.remote, request.headers)
@@ -298,7 +325,7 @@ async def save_layout(request):
 
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.13"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.14"})
 
 async def start_session(app):
     await app["layout_store"].load()
@@ -314,6 +341,7 @@ def create_app():
     app.router.add_get("/api/health",health)
     app.router.add_get("/api/layout",get_layout)
     app.router.add_get("/api/layout/catalog",layout_catalog)
+    app.router.add_post("/api/studio/draft",studio_draft)
     app.router.add_post("/api/layout/preview",preview_layout)
     app.router.add_post("/api/layout/save",save_layout)
     app.router.add_get("/api/access",access_diagnostics)
