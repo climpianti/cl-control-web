@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 from pathlib import Path
 from aiohttp import web, ClientSession, ClientTimeout, ClientError
@@ -21,6 +22,8 @@ def core_websocket_url(core):
     return endpoint.replace("https://", "wss://", 1).replace("http://", "ws://", 1)
 TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
 DOMAINS = {
+    "cover": {"open_cover", "close_cover", "stop_cover", "set_cover_position"},
+    "climate": {"set_temperature", "set_hvac_mode", "set_preset_mode", "set_fan_mode"},
     "light": {"turn_on", "turn_off"},
     "media_player": {"media_play", "media_pause", "media_next_track", "media_previous_track", "volume_set", "volume_mute"},
 }
@@ -63,13 +66,13 @@ async def bootstrap(request):
         attrs = item.get("attributes") or {}
         allowed = {
             k: v for k,v in attrs.items()
-            if k in {"friendly_name","brightness","hs_color","rgb_color","rgbw_color","rgbww_color",
+            if k in {"current_position","current_temperature","current_humidity","hvac_modes","hvac_action","min_temp","max_temp","target_temp_step","preset_modes","preset_mode","fan_modes","fan_mode","friendly_name","brightness","hs_color","rgb_color","rgbw_color","rgbww_color",
                      "supported_color_modes","color_mode","color_temp_kelvin","min_color_temp_kelvin",
                      "max_color_temp_kelvin","supported_features","volume_level","is_volume_muted",
                      "media_title","media_artist","source","source_list","unit_of_measurement","device_class","temperature","humidity","condition","forecast","entity_picture","supported_features"}
         }
         limited.append({"entity_id":eid,"state":item.get("state"),"attributes":allowed})
-    return web.json_response({"version":"0.1.0-beta.5","states":limited})
+    return web.json_response({"version":"0.1.0-beta.6","states":limited})
 
 def valid_control(obj):
     if not isinstance(obj,dict) or set(obj)-{"entity_id","action","data"}:
@@ -80,6 +83,19 @@ def valid_control(obj):
     dom=eid.split(".",1)[0]
     if action not in DOMAINS.get(dom, set()) or not isinstance(params,dict):
         raise ValueError("Action not allowed")
+    if dom in {"cover", "climate"}:
+        expected = {"set_cover_position": "position", "set_temperature": "temperature", "set_hvac_mode": "hvac_mode", "set_preset_mode": "preset_mode", "set_fan_mode": "fan_mode"}.get(action)
+        if set(params) != ({expected} if expected else set()):
+            raise ValueError("Parametri non consentiti")
+        if expected in {"position", "temperature"}:
+            value = params[expected]
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ValueError("Valore non valido")
+            if expected == "position" and (type(value) is not int or not 0 <= value <= 100):
+                raise ValueError("Posizione non valida")
+        elif expected and (not isinstance(params[expected], str) or len(params[expected]) > 100):
+            raise ValueError("Modalità non valida")
+        return dom, action, eid, params
     allowed=PERMITTED_LIGHT if dom=="light" else PERMITTED_MEDIA
     if set(params)-allowed:
         raise ValueError("Parameters not allowed")
@@ -102,6 +118,25 @@ def valid_control(obj):
             raise ValueError("Invalid mute")
     return dom,action,eid,params
 
+def validate_live_control(dom, action, params, state, services):
+    if not state or state.get("state") in {"unknown", "unavailable", None}:
+        raise ValueError("Dispositivo non disponibile")
+    if action not in services.get(dom, {}):
+        raise ValueError("Servizio non disponibile")
+    a = state.get("attributes") or {}
+    flags = a.get("supported_features", 0)
+    bits = {"open_cover": 1, "close_cover": 2, "set_cover_position": 4, "stop_cover": 8,
+            "set_temperature": 1, "set_preset_mode": 16, "set_fan_mode": 8}
+    if action in bits and not flags & bits[action]:
+        raise ValueError("Funzione non supportata")
+    if action == "set_temperature":
+        low, high = a.get("min_temp"), a.get("max_temp")
+        if type(low) not in (int, float) or type(high) not in (int, float) or not low <= params["temperature"] <= high:
+            raise ValueError("Temperatura fuori dai limiti del dispositivo")
+    for key, values in (("hvac_mode", "hvac_modes"), ("preset_mode", "preset_modes"), ("fan_mode", "fan_modes")):
+        if key in params and params[key] not in a.get(values, []):
+            raise ValueError("Modalità non supportata")
+
 async def command(request):
     if request.content_length and request.content_length>MAX_BODY:
         raise web.HTTPRequestEntityTooLarge(max_size=MAX_BODY,actual_size=request.content_length)
@@ -110,6 +145,11 @@ async def command(request):
     try:
         obj=await request.json()
         dom,action,eid,params=valid_control(obj)
+        if dom in {"cover", "climate"}:
+            states = await ha_request(request, "GET", "states")
+            state = next((s for s in states if s.get("entity_id") == eid), None)
+            raw = await ha_request(request, "GET", "services")
+            validate_live_control(dom, action, params, state, {s["domain"]: s.get("services", {}) for s in raw})
     except (ValueError,TypeError,json.JSONDecodeError) as ex:
         raise web.HTTPBadRequest(text=str(ex)) from ex
     await ha_request(request,"POST",f"services/{dom}/{action}",{"entity_id":eid,**params})
@@ -183,7 +223,7 @@ async def media_command(request):
     return web.json_response({"ok": True})
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.5"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.6"})
 
 async def start_session(app):
     app["session"]=ClientSession(timeout=ClientTimeout(total=8))

@@ -4,10 +4,10 @@ Nuova **App Home Assistant con Ingress** e interfaccia CL Impianti Blue Tech Pre
 
 ## Stato
 
-- `cl_control_web_next` **0.1.0-beta.5**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
+- `cl_control_web_next` **0.1.0-beta.6**: Blue Tech Premium con luci compatte e dettagli al tocco; distribuzione dallo Store dal ramo `main` dopo integrazione della proposta.
 - Vecchia App `local_cl_control_web` 0.2.0-beta.6: non modificata.
 - Integrazione Core `cl_control`: resta indipendente.
-- Beta funzionale: Home, Aree, Luci, RGBW e Multimedia; riepiloghi energia e altri moduli in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
+- Beta funzionale: Home, Aree, Luci, RGBW, Multimedia, Aperture e Clima; riepiloghi energia e sicurezza in sola lettura. Non introduce i comandi avanzati dell'integrazione Core.
 - Le luci mantengono una scheda compatta: tocco su nome/icona per i dettagli, interruttore separato per accendere e spegnere. Luminosità, colore, bianco RGBW e Kelvin compaiono solo se supportati dall'entità.
 - NON ancora collaudata dentro Home Assistant. Verificare CI e QA prima dell'uso su impianti reali.
 

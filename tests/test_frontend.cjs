@@ -41,3 +41,13 @@ test('unavailable light is disabled and entity names are escaped',()=>{
  const html=run(`lightTile({entity_id:'light.a',state:'unavailable',attributes:{friendly_name:'<img onerror=x>'}})`);
  assert(html.includes('disabled'));assert(html.includes('&lt;img onerror=x&gt;'));assert(!html.includes('<img'));
 });
+test('cover controls follow features and retain unknown position',()=>{
+ const html=run(`card({entity_id:'cover.test',state:'closed',attributes:{supported_features:15,current_position:0}})`);
+ assert.match(html,/open_cover/);assert.match(html,/stop_cover/);assert.match(html,/close_cover/);assert.match(html,/value="0"/);
+ const limited=run(`card({entity_id:'cover.test',state:'unavailable',attributes:{supported_features:1}})`);
+ assert.match(limited,/disabled/);assert.doesNotMatch(limited,/stop_cover/);assert.match(limited,/Posizione non disponibile/);
+});
+test('climate controls use entity limits modes and measured temperature',()=>{
+ const html=run(`card({entity_id:'climate.test',state:'off',attributes:{supported_features:25,hvac_modes:['heat','off'],preset_modes:['comfort'],fan_modes:['low'],min_temp:16,max_temp:28,target_temp_step:0.1,temperature:22.7,current_temperature:21}})`);
+ assert.match(html,/min="16" max="28" step="0.1"/);assert.match(html,/set_hvac_mode/);assert.match(html,/set_preset_mode/);assert.match(html,/set_fan_mode/);assert.match(html,/ambiente: 21/);
+});

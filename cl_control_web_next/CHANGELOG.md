@@ -1,3 +1,10 @@
+# 0.1.0-beta.6
+
+- Aperture: Apri, Stop, Chiudi e posizione con conferma Applica.
+- Clima: temperatura ambiente, setpoint, modalità, profili e ventilazione rilevati automaticamente.
+- Validazione server di disponibilità, capacità, servizi e limiti prima dei comandi.
+- Nessun comando fisico inviato durante il collaudo.
+
 # 0.1.0-beta.5
 
 - Telecomando su ogni card media: accensione, volume/mute, riproduzione, sorgenti/app e tasti disponibili tramite rilevamento automatico.
