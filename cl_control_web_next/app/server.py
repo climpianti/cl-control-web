@@ -9,9 +9,9 @@ from pathlib import Path
 from aiohttp import web, ClientSession, ClientTimeout, ClientError
 from copy import deepcopy
 try:
-    from .layout import LayoutStore, validate_layout, suggest_layout
+    from .layout import LayoutStore, validate_layout, suggest_layout, build_catalog
 except ImportError:
-    from layout import LayoutStore, validate_layout, suggest_layout
+    from layout import LayoutStore, validate_layout, suggest_layout, build_catalog
 try:
     from .access import identity_from_ingress, access_summary
 except ImportError:
@@ -71,7 +71,7 @@ async def ha_request(request: web.Request, method: str, endpoint: str, data=None
 async def bootstrap(request):
     states = await ha_request(request, "GET", "states")
     return web.json_response({
-        "version": "0.1.0-beta.12",
+        "version": "0.1.0-beta.13",
         "states": [safe for item in states if (safe := filter_state(item)) is not None],
     })
 
@@ -234,6 +234,15 @@ async def access_diagnostics(request):
     context = identity_from_ingress(request.remote, request.headers)
     return web.json_response(access_summary(context))
 
+async def layout_catalog(request):
+    """An administrative catalog without HA state values or secret attributes."""
+    context = identity_from_ingress(request.remote, request.headers)
+    if not context.ingress_verified:
+        raise web.HTTPForbidden(text="Ingress authentication required")
+    states = await ha_request(request, "GET", "states")
+    return web.json_response(build_catalog(states))
+
+
 async def get_layout(request):
     store = request.app["layout_store"]
     return web.json_response({"layout": store.snapshot(), "editable": False,
@@ -289,7 +298,7 @@ async def save_layout(request):
 
 
 async def health(_):
-    return web.json_response({"ok":True,"version":"0.1.0-beta.12"})
+    return web.json_response({"ok":True,"version":"0.1.0-beta.13"})
 
 async def start_session(app):
     await app["layout_store"].load()
@@ -304,6 +313,7 @@ def create_app():
     app.router.add_get("/",index)
     app.router.add_get("/api/health",health)
     app.router.add_get("/api/layout",get_layout)
+    app.router.add_get("/api/layout/catalog",layout_catalog)
     app.router.add_post("/api/layout/preview",preview_layout)
     app.router.add_post("/api/layout/save",save_layout)
     app.router.add_get("/api/access",access_diagnostics)
