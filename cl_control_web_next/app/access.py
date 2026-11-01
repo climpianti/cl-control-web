@@ -1,8 +1,9 @@
-"""Fail-closed model for future customer access via Home Assistant Ingress.
+"""Ingress identity diagnostics and fail-closed customer authorization.
 
-Never trust identity headers from a direct client: only the Supervisor ingress
-proxy address is eligible to supply them. Customer access is DISABLED until
-all entity-scoped reads/actions can be independently enforced and tested.
+Supervisor provides X-Remote-User-Id (not a trusted HA role/group header).
+Only the Supervisor ingress gateway can supply trustworthy identity.
+The existing panel_admin=true remains the CURRENT administrator access gate.
+No client permission can be inferred from an ingress user ID alone.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -11,14 +12,12 @@ import re
 
 INGRESS_PROXY = "172.30.32.2"
 USER_PATTERN = re.compile(r"^[a-f0-9]{32}$", re.IGNORECASE)
-ADMIN_GROUP = "system-admin"
 
 
 @dataclass(frozen=True)
 class AccessContext:
-    role: str
     user_id: str | None
-    verified_ingress: bool
+    ingress_verified: bool
     reason: str
 
 
@@ -32,36 +31,26 @@ def trusted_source(remote: str | None, *, proxy: str = INGRESS_PROXY) -> bool:
 
 
 def identity_from_ingress(remote, headers, *, proxy: str = INGRESS_PROXY) -> AccessContext:
-    """Supervisor-origin request with an authenticated HA user or deny.
-
-    These headers cannot be accepted from callers reaching the container
-    directly. A future customer mode also needs native per-entity policies.
-    """
     if not trusted_source(remote, proxy=proxy):
-        return AccessContext("denied", None, False, "untrusted_source")
+        return AccessContext(None, False, "untrusted_source")
     raw_id = headers.get("X-Remote-User-Id", "")
-    groups = headers.get("X-Remote-User-Groups", "")
-    if not USER_PATTERN.fullmatch(raw_id):
-        return AccessContext("denied", None, True, "user_unverified")
-    group_names = {part.strip() for part in groups.split(",") if part.strip()}
-    if ADMIN_GROUP in group_names:
-        return AccessContext("installer", raw_id, True, "admin_group")
-    return AccessContext("denied", raw_id, True, "customer_disabled")
+    if not isinstance(raw_id, str) or not USER_PATTERN.fullmatch(raw_id):
+        return AccessContext(None, False, "user_unverified")
+    return AccessContext(raw_id, True, "ingress_authenticated")
 
 
-def may_access(ctx: AccessContext, operation: str) -> bool:
-    """No client access until a user-scoped HA permissions API exists."""
-    return ctx.verified_ingress and ctx.role == "installer" and operation in {
-        "read", "control", "installer"
-    }
+def may_access_customer(ctx: AccessContext, entity_id: str, action: str) -> bool:
+    """Until per-user HA permission checks exist, all customer data/control denied."""
+    return False
 
 
 def access_summary(ctx: AccessContext) -> dict:
-    """No identifiers or raw request headers are exposed to the frontend."""
+    # Do not return user IDs, cookies, group information or remote address.
     return {
-        "role": ctx.role,
-        "verified_ingress": ctx.verified_ingress,
+        "ingress_verified": ctx.ingress_verified,
+        "identity_available": ctx.user_id is not None,
         "customer_enabled": False,
-        "installer_allowed": may_access(ctx, "installer"),
+        "role": "admin_panel_only" if ctx.ingress_verified else "unverified",
+        "role_verification": "not_available",
         "reason": ctx.reason,
     }
