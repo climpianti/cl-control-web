@@ -1,3 +1,12 @@
+# 0.1.0-beta.14
+
+- CL Control AI Studio: prima interfaccia per richieste in linguaggio naturale, con esempi e proposte di dashboard.
+- Pianificatore locale deterministico: interpreta parole chiave, controlla entita reali di Home Assistant e produce solo layout JSON schema 1.
+- Nessun provider LLM configurato o eseguito; nessuna richiesta cloud, nessun invio di dati fuori dall'impianto.
+- Nessun comando a dispositivi e nessun salvataggio automatico: la proposta deve essere verificata e approvata nell'editor visuale.
+- Endpoint /api/studio/draft protetto da Ingress e limitato al pannello amministratore.
+- Preparazione della separazione Core AI Studio (KNX/Modbus) dal motore dashboard.
+ 
 # 0.1.0-beta.13
 
 - Editor visuale dashboard: modifica titolo e singoli widget, scegli entita reali, aggiungi e rimuovi widget, riordina con controlli accessibili.
