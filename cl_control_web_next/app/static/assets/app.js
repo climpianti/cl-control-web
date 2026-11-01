@@ -5,6 +5,47 @@ let remoteId="", remoteTrigger=null, mediaProfiles=[], mediaError="";
 let detailId="", detailTrigger=null;
 let page="Home",areaId="",search="",data=[],areas=[],error="",busy=false;
 let dashboardLayout=null,dashboardDraft=null,layoutMessage="",layoutSaving=false;
+let layoutCatalog=null,layoutValidated=false;
+const layoutTypes=[["systems","Sistemi"],["areas","Aree"],["cl_systems","Sistemi CL"],["energy","Energia"],["entity","Singola entità"]];
+function cloneLayout(v){return JSON.parse(JSON.stringify(v))}
+function getEditorDraft(){if(!dashboardDraft&&dashboardLayout)dashboardDraft=cloneLayout(dashboardLayout);return dashboardDraft}
+function editLayoutDraft(mutator){
+ const next=cloneLayout(getEditorDraft());
+ mutator(next);
+ dashboardDraft=next;layoutValidated=false;
+ layoutMessage="Modifiche locali da verificare. Nessun salvataggio effettuato.";
+ render();
+}
+function draftWidgetId(draft){
+ let n=1;while(draft.widgets.some(w=>w.id==="widget-"+n))n++;
+ return "widget-"+n;
+}
+function addLayoutWidget(type){
+ if(!layoutTypes.some(pair=>pair[0]===type))return;
+ if(!getEditorDraft()||dashboardDraft.widgets.length>=24){layoutMessage="Massimo 24 widget";render();return}
+ const ids=layoutCatalog?.entities||[];
+ if(type==="entity"&&!ids.length){layoutMessage="Nessuna entità compatibile disponibile";render();return}
+ editLayoutDraft(d=>{
+   const widget={id:draftWidgetId(d),type,title:layoutTypes.find(x=>x[0]===type)[1]};
+   if(type==="entity")widget.entity_id=ids[0].entity_id;
+   d.widgets.push(widget);
+ });
+}
+function moveLayoutWidget(index,direction){
+ const d=getEditorDraft();const target=index+direction;
+ if(!d||target<0||target>=d.widgets.length)return;
+ editLayoutDraft(x=>{[x.widgets[index],x.widgets[target]]=[x.widgets[target],x.widgets[index]]});
+}
+function removeLayoutWidget(index){
+ const d=getEditorDraft();
+ if(!d||d.widgets.length<=1){layoutMessage="La dashboard deve contenere almeno un widget";render();return}
+ editLayoutDraft(x=>x.widgets.splice(index,1));
+}
+async function loadCatalog(){
+ try{layoutCatalog=await api("layout/catalog");render()}
+ catch(e){layoutCatalog=null;layoutMessage="Catalogo widget non disponibile: "+e.message;render()}
+}
+
 async function loadLayout(){
  try{const r=await api("layout");dashboardLayout=r.layout;render()}
  catch(e){layoutMessage="Configurazione dashboard non raggiungibile";render()}
@@ -37,27 +78,47 @@ function dynamicHome(layout){
 function renderLayoutEditor(){
  const selected=dashboardDraft||dashboardLayout;
  if(!selected)return '<p>Layout non disponibile.</p>';
- const preview=!!dashboardDraft;
- return '<section class="layout-editor"><h2>Dashboard per questo impianto</h2>'+
- '<p>Genera un’anteprima a partire dalle entità rilevate; poi approva il layout. Nessun comando viene inviato ai dispositivi.</p>'+
- '<div class="actions"><button class="action" data-layout-preview>Proponi layout</button>'+
- (preview?'<button class="action" data-layout-save '+(layoutSaving?"disabled":"")+'>Approva e salva</button><button class="action" data-layout-cancel>Annulla</button>':"")+'</div>'+
- (layoutMessage?'<p class="layout-message">'+esc(layoutMessage)+'</p>':"")+
- '<p class="layout-message">Revisione: '+Number(dashboardLayout?.revision||0)+(preview?' · Anteprima non salvata':' · Configurazione attiva')+'</p>'+
- '<div class="tri dynamic-widgets">'+selected.widgets.map(widgetHtml).join("")+'</div></section>';
+ const editing=!!dashboardDraft,entityOptions=layoutCatalog?.entities||[];
+ const controls=selected.widgets.map((w,i)=>{
+  const options=entityOptions.map(e=>'<option value="'+esc(e.entity_id)+'"'+(w.entity_id===e.entity_id?' selected':'')+'>'+esc(e.name+' · '+e.entity_id)+'</option>').join('');
+  const type=layoutTypes.find(x=>x[0]===w.type)?.[1]||"Non supportato";
+  return '<div class="layout-edit-row" data-widget-row="'+i+'"><div class="layout-edit-head"><strong>'+esc(type)+'</strong><span>'+(i+1)+'/'+selected.widgets.length+'</span></div>'+
+   '<label>Titolo<input aria-label="Titolo widget '+(i+1)+'" data-edit-title="'+i+'" maxlength="64" value="'+esc(w.title)+'"></label>'+
+   (w.type==="entity"?'<label>Entità<select aria-label="Entità widget '+(i+1)+'" data-edit-entity="'+i+'">'+options+'</select></label>':'')+
+   '<div class="layout-edit-buttons"><button type="button" data-move-widget="'+i+'" data-direction="-1" '+(i===0?'disabled':'')+' aria-label="Sposta su widget '+(i+1)+'">↑ Su</button>'+
+   '<button type="button" data-move-widget="'+i+'" data-direction="1" '+(i===selected.widgets.length-1?'disabled':'')+' aria-label="Sposta giù widget '+(i+1)+'">↓ Giù</button>'+
+   '<button type="button" data-remove-widget="'+i+'" '+(selected.widgets.length===1?'disabled':'')+' aria-label="Rimuovi widget '+(i+1)+'">Rimuovi</button></div></div>';
+ }).join('');
+ const choices=layoutTypes.map(([type,label])=>'<button type="button" data-add-widget="'+esc(type)+'"'+(!layoutCatalog||selected.widgets.length>=24?' disabled':'')+'>+ '+esc(label)+'</button>').join('');
+ return '<section class="layout-editor"><div class="layout-editor-head"><h2>Personalizza dashboard</h2><p>Le modifiche rimangono locali fino ad anteprima validata e approvazione. Nessun dispositivo viene comandato.</p></div>'+
+ '<div class="layout-editor-grid"><div class="layout-editor-controls"><label class="layout-title-label">Titolo dashboard<input data-layout-title maxlength="64" value="'+esc(selected.title)+'"></label>'+
+ '<h3>Widget ('+selected.widgets.length+'/24)</h3><div class="layout-edit-rows">'+controls+'</div><h3>Aggiungi widget</h3><div class="layout-add-buttons">'+choices+'</div>'+
+ '<div class="layout-editor-actions"><button class="action" type="button" data-layout-preview>Verifica anteprima</button>'+
+ (editing?'<button class="action" type="button" data-layout-save '+(!layoutValidated||layoutSaving?'disabled':'')+'>Approva e salva</button><button class="action" type="button" data-layout-cancel>Annulla modifiche</button>':'')+
+ '<button class="action" type="button" data-layout-suggest>Proponi automaticamente</button></div>'+
+ '<p class="layout-message" role="status">'+esc(layoutMessage||"Modifica l'ordine e le proprietà dei widget.")+'</p>'+
+ '<p class="layout-message">Revisione attiva: '+Number(dashboardLayout?.revision||0)+' · '+(layoutValidated?"Anteprima verificata, non salvata":editing?"Modifiche da verificare":"Nessuna modifica in corso")+'</p></div>'+
+ '<div class="layout-editor-preview"><h3>Anteprima non interattiva</h3><div class="layout-preview-shield" inert aria-label="Anteprima dashboard, comandi disabilitati">'+
+ '<div class="tri dynamic-widgets">'+selected.widgets.map(widgetHtml).join("")+'</div></div></div></div></section>';
 }
-async function previewDashboard(){
- try{const res=await api("layout/preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({suggest:true})});
- dashboardDraft=res.layout;dashboardDraft.revision=dashboardLayout?.revision||0;layoutMessage="Anteprima pronta. Verifica prima di approvare.";
- }catch(e){layoutMessage="Anteprima non disponibile: "+e.message;}
+async function previewDashboard(suggest=false){
+ if(layoutSaving)return;
+ try{
+  const payload=suggest?{suggest:true}:{layout:dashboardDraft||dashboardLayout};
+  const res=await api("layout/preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  if(suggest)dashboardDraft=res.layout;
+  else if(!dashboardDraft)dashboardDraft=cloneLayout(res.layout);
+  layoutValidated=true;
+  layoutMessage="Anteprima verificata dal server. Puoi approvare e salvare.";
+ }catch(e){layoutValidated=false;layoutMessage="Verifica fallita: "+e.message;}
  render();
 }
 async function saveDashboard(){
- if(!dashboardDraft||layoutSaving)return;
+ if(!dashboardDraft||layoutSaving||!layoutValidated)return;
  if(!window.confirm("Salvare questo layout come dashboard attiva per l’impianto?"))return;
  layoutSaving=true;render();
  try{const res=await api("layout/save",{method:"POST",headers:{"Content-Type":"application/json","X-CL-Layout-Confirm":"yes"},body:JSON.stringify({layout:dashboardDraft,expected_revision:dashboardLayout?.revision||0})});
- dashboardLayout=res.layout;dashboardDraft=null;layoutMessage="Dashboard salvata. Riapri Home per visualizzarla.";
+ dashboardLayout=res.layout;dashboardDraft=null;layoutValidated=false;layoutMessage="Dashboard salvata. Riapri Home per visualizzarla.";
  }catch(e){layoutMessage="Salvataggio non riuscito: "+e.message;}
  finally{layoutSaving=false;render();}
 }
@@ -218,9 +279,16 @@ function previewLight(input){const s=byId(input.dataset.entity);if(!s?.entity_id
 
 function colorParams(s,hue){const a=s?.attributes||{},m=a.supported_color_modes||[];const key=m.includes('rgbw')?'rgbw_color':m.includes('rgbww')?'rgbww_color':null;if(!key)return {hs_color:[hue,a.hs_color?.[1]??100]};const old=a[key]||(key==='rgbw_color'?[0,0,0,0]:[0,0,0,0,0]),sat=(a.hs_color?.[1]??100)/100,v=Math.max(...old.slice(0,3))/255||1,f=n=>{const k=(n+hue/60)%6;return Math.round(255*v*(1-sat*Math.max(0,Math.min(k,4-k,1))))};return {[key]:[f(5),f(3),f(1),...old.slice(3,key==='rgbw_color'?4:5)]}}
 function bindControls(root){root.querySelectorAll('[data-comfort-form]').forEach(form=>form.onsubmit=e=>{e.preventDefault();if(form.reportValidity())command(form.dataset.entity,form.dataset.comfortForm,{[form.dataset.key]:Number(form.querySelector('input').value)})});root.querySelectorAll('[data-comfort-select]').forEach(b=>b.onchange=()=>command(b.dataset.entity,b.dataset.comfortSelect,{[b.dataset.key]:b.value}));root.querySelectorAll("[data-slider]").forEach(b=>b.oninput=()=>previewLight(b));root.querySelectorAll("[data-action]").forEach(b=>b.onclick=()=>command(b.dataset.entity,b.dataset.action));root.querySelectorAll("[data-slider]").forEach(b=>b.onchange=()=>{let id=b.dataset.entity,key=b.dataset.slider,value=Number(b.value),dataObj={};if(key==="brightness_pct")dataObj={brightness_pct:value};if(key==="hs_color")dataObj=colorParams(byId(id),value);if(key==="color_temp_kelvin")dataObj={color_temp_kelvin:value};if(key==="volume_level")dataObj={volume_level:value/100};if(key==="rgbw_color"){let old=byId(id)?.attributes?.rgbw_color||[0,0,0,0];dataObj={rgbw_color:[...old.slice(0,3),value]}}command(id,key==="volume_level"?"volume_set":"turn_on",dataObj)});}
-function render(){if(remoteId&&document.querySelector("#media-dialog"))return;if(detailId&&document.querySelector("#light-dialog"))return;el.innerHTML='<div class="layout"><aside class="side"><div class="brand"><strong>CL CONTROL <b>NEXT</b></strong><img src="assets/cl-logo.png" alt="CL Impianti"></div><nav>'+nav.map(([n,i])=>'<button data-page="'+n+'" class="'+(n===page?"selected":"")+'"><span>'+SYMBOLS[i]+'</span>'+n+'</button>').join("")+'</nav><footer>Blue Tech Premium · beta</footer></aside><main><div class="heading"><div><span class="eyebrow">CL IMPIANTI / SMART BUILDING</span><h1>'+esc(page==="Area"?areas.find(a=>a.id===areaId)?.name:page)+'</h1></div><span class="connection">Home Assistant · Ingress</span></div>'+(error?'<div class="warning">'+esc(error)+'</div>':'')+(page==="Home"&&dashboardLayout?.revision>0?dynamicHome(dashboardLayout):page==="Home"?home():other())+'</main></div>'+bottomNavigation();document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{page=b.dataset.page;search="";render()});document.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{areaId=b.dataset.area;page="Area";render()});document.querySelector("[data-layout-preview]")?.addEventListener("click",previewDashboard);
+function render(){if(remoteId&&document.querySelector("#media-dialog"))return;if(detailId&&document.querySelector("#light-dialog"))return;el.innerHTML='<div class="layout"><aside class="side"><div class="brand"><strong>CL CONTROL <b>NEXT</b></strong><img src="assets/cl-logo.png" alt="CL Impianti"></div><nav>'+nav.map(([n,i])=>'<button data-page="'+n+'" class="'+(n===page?"selected":"")+'"><span>'+SYMBOLS[i]+'</span>'+n+'</button>').join("")+'</nav><footer>Blue Tech Premium · beta</footer></aside><main><div class="heading"><div><span class="eyebrow">CL IMPIANTI / SMART BUILDING</span><h1>'+esc(page==="Area"?areas.find(a=>a.id===areaId)?.name:page)+'</h1></div><span class="connection">Home Assistant · Ingress</span></div>'+(error?'<div class="warning">'+esc(error)+'</div>':'')+(page==="Home"&&dashboardLayout?.revision>0?dynamicHome(dashboardLayout):page==="Home"?home():other())+'</main></div>'+bottomNavigation();document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{page=b.dataset.page;search="";render()});document.querySelectorAll("[data-area]").forEach(b=>b.onclick=()=>{areaId=b.dataset.area;page="Area";render()});document.querySelector("[data-layout-preview]")?.addEventListener("click",()=>previewDashboard(false));
+document.querySelector("[data-layout-suggest]")?.addEventListener("click",()=>previewDashboard(true));
+document.querySelector("[data-layout-title]")?.addEventListener("change",e=>editLayoutDraft(d=>{d.title=e.target.value}));
+document.querySelectorAll("[data-edit-title]").forEach(el=>el.addEventListener("change",e=>editLayoutDraft(d=>{d.widgets[Number(el.dataset.editTitle)].title=e.target.value})));
+document.querySelectorAll("[data-edit-entity]").forEach(el=>el.addEventListener("change",e=>editLayoutDraft(d=>{d.widgets[Number(el.dataset.editEntity)].entity_id=e.target.value})));
+document.querySelectorAll("[data-add-widget]").forEach(el=>el.addEventListener("click",()=>addLayoutWidget(el.dataset.addWidget)));
+document.querySelectorAll("[data-move-widget]").forEach(el=>el.addEventListener("click",()=>moveLayoutWidget(Number(el.dataset.moveWidget),Number(el.dataset.direction))));
+document.querySelectorAll("[data-remove-widget]").forEach(el=>el.addEventListener("click",()=>removeLayoutWidget(Number(el.dataset.removeWidget))));
 document.querySelector("[data-layout-save]")?.addEventListener("click",saveDashboard);
-document.querySelector("[data-layout-cancel]")?.addEventListener("click",()=>{dashboardDraft=null;layoutMessage="Anteprima annullata";render()});
+document.querySelector("[data-layout-cancel]")?.addEventListener("click",()=>{dashboardDraft=null;layoutValidated=false;layoutMessage="Modifiche annullate";render()});
 paintLights(document);bindControls(document);document.querySelectorAll("[data-remote]").forEach(b=>b.onclick=()=>openRemote(b.dataset.remote));document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>openDetail(b.dataset.detail));document.querySelector("#search")?.addEventListener("input",e=>{search=e.target.value;let pos=e.target.selectionStart;render();const b=document.querySelector("#search");b.focus();b.setSelectionRange(pos,pos)})}
 async function refresh(){try{const res=await api("bootstrap");data=res.states||[];error="";render()}catch(e){error="Connessione Home Assistant: "+e.message;render()}}
 async function loadAreas(){try{const res=await api("areas");areas=res.areas||[];render()}catch(e){areas=[];render()}}
@@ -280,7 +348,7 @@ function startRealtime(){
  ws.addEventListener("error",()=>ws.close());
 }
 render();
-Promise.all([refresh(),loadAreas(),loadLayout()]).then(startRealtime);
+Promise.all([refresh(),loadAreas(),loadLayout(),loadCatalog()]).then(startRealtime);
 setInterval(()=>{if(!realtimeReady&&refreshAllowed())refresh()},9000);
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden){clearTimeout(realtimeRetry);realtimeSocket?.close();return}
